@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using QueryMongo.Core;
 using QueryMongo.Core.Models;
 using QueryMongo.Core.Services;
 
@@ -12,13 +13,16 @@ namespace QueryMongo.App.ViewModels;
 public sealed partial class DatabaseNodeViewModel(DatabaseInfo info, CatalogService catalog) : ObservableObject
 {
     private readonly CatalogService _catalog = catalog;
+
+    /// <summary>Everything loaded for this database, before the sidebar filter.</summary>
+    private readonly List<CollectionNodeViewModel> _all = [];
+
     private bool _loaded;
+    private string _filter = "";
 
-    [ObservableProperty]
-    public partial bool IsLoading { get; set; }
+    [ObservableProperty] public partial bool IsLoading { get; set; }
 
-    [ObservableProperty]
-    public partial bool IsExpanded { get; set; }
+    [ObservableProperty] public partial bool IsExpanded { get; set; }
 
     public DatabaseInfo Info { get; } = info;
 
@@ -36,27 +40,63 @@ public sealed partial class DatabaseNodeViewModel(DatabaseInfo info, CatalogServ
     public async Task EnsureLoadedAsync()
     {
         if (_loaded || IsLoading) return;
+        await ReloadAsync().ConfigureAwait(true);
+    }
 
+    public async Task ReloadAsync()
+    {
         IsLoading = true;
         try
         {
             var collections = await _catalog.ListCollectionsAsync(Name).ConfigureAwait(true);
 
-            Collections.Clear();
-            foreach (var c in collections)
-                Collections.Add(new CollectionNodeViewModel(c));
+            _all.Clear();
+            foreach (var c in collections) _all.Add(new CollectionNodeViewModel(c));
 
+            Project();
             _loaded = true;
         }
         catch
         {
-            // A database the user cannot list (permissions) simply shows as empty
-            // rather than taking down the whole tree.
+            // A database the user cannot list (permissions) shows as empty rather than
+            // taking down the whole tree.
             _loaded = true;
         }
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Narrows the visible collections. Returns true when something matches, so the
+    /// sidebar knows whether to keep this database in the list.
+    /// </summary>
+    public bool ApplyCollectionFilter(string term)
+    {
+        _filter = term;
+        Project();
+
+        // An unexpanded database has nothing loaded to match against yet.
+        return Collections.Count > 0;
+    }
+
+    public void ClearCollectionFilter()
+    {
+        _filter = "";
+        Project();
+    }
+
+    private void Project()
+    {
+        Collections.Clear();
+
+        foreach (var c in _all)
+        {
+            if (_filter.Length > 0 && !c.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            Collections.Add(c);
         }
     }
 }
@@ -68,6 +108,8 @@ public sealed class CollectionNodeViewModel(CollectionInfo info)
     public string Name => Info.Name;
 
     public string Database => Info.Database;
+
+    public CollectionKind Kind => Info.Kind;
 
     public string Glyph => Info.Kind switch
     {
@@ -82,25 +124,4 @@ public sealed class CollectionNodeViewModel(CollectionInfo info)
         CollectionKind.TimeSeries => "time series",
         _ => ""
     };
-}
-
-/// <summary>Formats byte counts the way the sidebar and stats strip show them.</summary>
-public static class ByteSize
-{
-    private static readonly string[] Units = ["B", "KB", "MB", "GB", "TB", "PB"];
-
-    public static string Format(long bytes)
-    {
-        if (bytes <= 0) return "0 B";
-
-        var order = 0;
-        double size = bytes;
-        while (size >= 1024 && order < Units.Length - 1)
-        {
-            size /= 1024;
-            order++;
-        }
-
-        return order == 0 ? $"{bytes} B" : $"{size:0.#} {Units[order]}";
-    }
 }

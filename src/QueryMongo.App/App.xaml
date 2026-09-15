@@ -26,6 +26,26 @@
                 <Setter Property="IsSpellCheckEnabled" Value="False" />
             </Style>
 
+            <!-- Stat tiles on the Performance tab -->
+            <Style x:Key="StatTileStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="Padding" Value="14,10" />
+                <Setter Property="MinWidth" Value="120" />
+            </Style>
+
+            <Style x:Key="StatLabelStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
+
+            <Style x:Key="StatValueStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="22" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+
             <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12" />
                 <Setter Property="FontWeight" Value="SemiBold" />

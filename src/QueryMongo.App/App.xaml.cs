@@ -54,14 +54,22 @@ public partial class App : Application
         var services = new ServiceCollection();
 
         services.AddSingleton<IConnectionStore>(_ => new FileConnectionStore());
+        services.AddSingleton(_ => new QueryHistoryStore());
         services.AddSingleton<ShellViewModel>();
 
         return services.BuildServiceProvider();
     }
 
+    /// <summary>
+    /// The main window's HWND. File pickers need it explicitly because an unpackaged
+    /// app has no implicit window context for them to attach to.
+    /// </summary>
+    public static IntPtr MainWindowHandle { get; private set; }
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         _window = new MainWindow();
+        MainWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(_window);
         _window.Activate();
     }
 }

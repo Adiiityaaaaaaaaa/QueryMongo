@@ -1,0 +1,21 @@
+<ContentDialog
+    x:Class="QueryMongo.App.Dialogs.JsonEditorDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Document"
+    PrimaryButtonText="Save"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary">
+
+    <StackPanel Spacing="10" Width="560">
+        <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" FontSize="12"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="Collapsed" />
+
+        <TextBox x:Name="Editor" AcceptsReturn="True" TextWrapping="Wrap" Height="300"
+                 FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                 IsSpellCheckEnabled="False" />
+
+        <InfoBar x:Name="ErrorBar" Severity="Error" IsClosable="False" IsOpen="False" />
+    </StackPanel>
+</ContentDialog>

@@ -87,6 +87,25 @@ public static class BsonJson
     public static string ToCompactJson(BsonDocument document) => document.ToJson(Compact);
 
     /// <summary>
+    /// Renders any BSON value on one line, including arrays and scalars.
+    ///
+    /// The driver's own serializers refuse a non-document at the root, so this walks
+    /// the value directly rather than round-tripping through a document.
+    /// </summary>
+    public static string ValueToJson(BsonValue value) => value switch
+    {
+        BsonDocument document => ToCompactJson(document),
+        BsonArray array => "[" + string.Join(",", array.Select(ValueToJson)) + "]",
+        BsonNull => "null",
+        BsonBoolean b => b.Value ? "true" : "false",
+        BsonString s => Quote(s.Value),
+        _ => value.ToString() ?? ""
+    };
+
+    private static string Quote(string text) =>
+        "\"" + text.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+
+    /// <summary>
     /// A one-line preview for collapsed rows, truncated so a 16 MB document cannot
     /// stall the list.
     /// </summary>

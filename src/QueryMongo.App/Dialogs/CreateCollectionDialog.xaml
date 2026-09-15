@@ -1,0 +1,41 @@
+<ContentDialog
+    x:Class="QueryMongo.App.Dialogs.CreateCollectionDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Create collection"
+    PrimaryButtonText="Create"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary">
+
+    <StackPanel Spacing="12" Width="440">
+
+        <TextBox x:Name="DatabaseBox" Header="Database name"
+                 PlaceholderText="myDatabase" Visibility="Collapsed" />
+
+        <TextBox x:Name="CollectionBox" Header="Collection name" PlaceholderText="myCollection" />
+
+        <Expander Header="Advanced" HorizontalAlignment="Stretch">
+            <StackPanel Spacing="12" Margin="0,8,0,0">
+
+                <CheckBox x:Name="CappedCheck" Content="Capped collection"
+                          Checked="OnCappedToggled" Unchecked="OnCappedToggled" />
+                <StackPanel x:Name="CappedPanel" Spacing="8" Margin="24,0,0,0" Visibility="Collapsed">
+                    <NumberBox x:Name="MaxSizeBox" Header="Maximum size (bytes)"
+                               Value="4096" Minimum="1" SpinButtonPlacementMode="Compact" />
+                    <NumberBox x:Name="MaxDocsBox" Header="Maximum documents (optional)"
+                               Minimum="0" SpinButtonPlacementMode="Compact" />
+                </StackPanel>
+
+                <CheckBox x:Name="TimeSeriesCheck" Content="Time-series collection"
+                          Checked="OnTimeSeriesToggled" Unchecked="OnTimeSeriesToggled" />
+                <StackPanel x:Name="TimeSeriesPanel" Spacing="8" Margin="24,0,0,0" Visibility="Collapsed">
+                    <TextBox x:Name="TimeFieldBox" Header="Time field" PlaceholderText="timestamp" />
+                    <TextBox x:Name="MetaFieldBox" Header="Metadata field (optional)" PlaceholderText="metadata" />
+                </StackPanel>
+
+                <TextBox x:Name="CollationBox" Header="Collation locale (optional)"
+                         PlaceholderText="en" />
+            </StackPanel>
+        </Expander>
+    </StackPanel>
+</ContentDialog>

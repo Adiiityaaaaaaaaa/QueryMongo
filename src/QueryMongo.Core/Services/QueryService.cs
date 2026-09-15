@@ -15,7 +15,7 @@ public sealed class QueryInputException(string field, string error)
 }
 
 /// <summary>Runs finds, counts, explains and aggregations for one collection.</summary>
-public sealed class QueryService(MongoSession session)
+public sealed partial class QueryService(MongoSession session)
 {
     private readonly MongoSession _session = session;
 

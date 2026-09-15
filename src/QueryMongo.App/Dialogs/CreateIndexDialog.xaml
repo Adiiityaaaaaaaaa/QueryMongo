@@ -1,0 +1,55 @@
+<ContentDialog
+    x:Class="QueryMongo.App.Dialogs.CreateIndexDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Create index"
+    PrimaryButtonText="Create"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary">
+
+    <ScrollViewer MaxHeight="520">
+        <StackPanel Spacing="12" Width="480">
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Keys" FontSize="12" FontWeight="SemiBold" />
+                <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="1 ascending, -1 descending, &quot;text&quot; / &quot;2dsphere&quot; / &quot;hashed&quot; for special indexes." />
+                <TextBox x:Name="KeysBox" AcceptsReturn="True" TextWrapping="Wrap" Height="110"
+                         FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                         IsSpellCheckEnabled="False"
+                         PlaceholderText="{}{ field: 1, other: -1 }" />
+            </StackPanel>
+
+            <TextBox x:Name="NameBox" Header="Index name (optional)"
+                     PlaceholderText="Generated from the keys if left blank" />
+
+            <StackPanel Spacing="6">
+                <CheckBox x:Name="UniqueCheck" Content="Unique" />
+                <TextBlock FontSize="11" Margin="28,-4,0,0"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                           Text="Creation fails if existing documents already violate uniqueness." />
+
+                <CheckBox x:Name="SparseCheck" Content="Sparse (skip documents missing the field)" />
+                <CheckBox x:Name="BackgroundCheck" Content="Build in background" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <CheckBox x:Name="TtlCheck" Content="Expire documents (TTL)"
+                          Checked="OnTtlToggled" Unchecked="OnTtlToggled" />
+                <NumberBox x:Name="TtlBox" Header="Seconds after the indexed date" Margin="28,0,0,0"
+                           Value="3600" Minimum="1" SpinButtonPlacementMode="Compact"
+                           Visibility="Collapsed" />
+            </StackPanel>
+
+            <TextBox x:Name="PartialBox" Header="Partial filter expression (optional)"
+                     AcceptsReturn="True" TextWrapping="Wrap" Height="70"
+                     FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                     IsSpellCheckEnabled="False"
+                     PlaceholderText="{}{ status: &quot;active&quot; }" />
+
+            <TextBox x:Name="CollationBox" Header="Collation locale (optional)" PlaceholderText="en" />
+
+            <InfoBar x:Name="ErrorBar" Severity="Error" IsClosable="False" IsOpen="False" />
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

@@ -4,61 +4,94 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:c="using:QueryMongo.App.Controls"
     xmlns:vm="using:QueryMongo.App.ViewModels"
-    xmlns:models="using:QueryMongo.Core.Models">
+    xmlns:svc="using:QueryMongo.Core.Services"
+    xmlns:local="using:QueryMongo.App.Views">
 
-    <Grid ColumnSpacing="0">
+    <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="300" MinWidth="220" />
+            <ColumnDefinition Width="300" MinWidth="240" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- ===================== Sidebar ===================== -->
+        <!-- ============================ Sidebar ============================ -->
         <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="8">
+            <Grid Grid.Row="0" Padding="12,8,8,4" ColumnSpacing="4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Databases" Style="{StaticResource SectionHeaderStyle}"
-                           VerticalAlignment="Center" />
-                <Button Grid.Column="1" Command="{x:Bind Shell.RefreshDatabasesCommand}"
-                        ToolTipService.ToolTip="Refresh" Padding="6,2">
+
+                <TextBlock Grid.Column="0" Text="Databases" VerticalAlignment="Center"
+                           Style="{StaticResource SectionHeaderStyle}" />
+
+                <Button Grid.Column="1" Click="OnCreateDatabase" Padding="6,2"
+                        ToolTipService.ToolTip="Create database">
+                    <FontIcon Glyph="&#xE710;" FontSize="13" />
+                </Button>
+                <Button Grid.Column="2" Command="{x:Bind Shell.RefreshDatabasesCommand}" Padding="6,2"
+                        ToolTipService.ToolTip="Refresh">
                     <FontIcon Glyph="&#xE72C;" FontSize="13" />
                 </Button>
             </Grid>
 
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="4,0,4,8">
+            <AutoSuggestBox Grid.Row="1" Margin="12,4,12,8" QueryIcon="Find"
+                            PlaceholderText="Filter databases and collections"
+                            Text="{x:Bind Shell.SidebarFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="4,0,4,8">
                 <ItemsControl ItemsSource="{x:Bind Shell.Databases}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:DatabaseNodeViewModel">
-                            <Expander HorizontalAlignment="Stretch" Margin="0,1"
-                                      IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
-                                      Padding="0" Background="Transparent" BorderThickness="0">
+                            <Expander HorizontalAlignment="Stretch" Margin="0,1" Padding="0"
+                                      Background="Transparent" BorderThickness="0"
+                                      IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}">
                                 <Expander.Header>
                                     <Grid ColumnSpacing="8" Padding="0,2">
+                                        <Grid.ContextFlyout>
+                                            <MenuFlyout>
+                                                <MenuFlyoutItem Text="Create collection" Tag="{x:Bind}"
+                                                                Click="OnCreateCollection">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE710;" />
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                                <MenuFlyoutSeparator />
+                                                <MenuFlyoutItem Text="Drop database" Tag="{x:Bind}"
+                                                                Click="OnDropDatabase">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE74D;" />
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                            </MenuFlyout>
+                                        </Grid.ContextFlyout>
+
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
+
                                         <FontIcon Grid.Column="0" Glyph="&#xE81C;" FontSize="14" />
                                         <TextBlock Grid.Column="1" Text="{x:Bind Name}"
-                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="2" Text="{x:Bind SizeDescription}" FontSize="11"
                                                    VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2" Text="{x:Bind SizeDescription}"
+                                                   FontSize="11" VerticalAlignment="Center"
                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                                     </Grid>
                                 </Expander.Header>
 
                                 <StackPanel Margin="20,0,0,4">
-                                    <ProgressBar IsIndeterminate="True" Margin="4,4"
+                                    <ProgressBar IsIndeterminate="True" Margin="4"
                                                  Visibility="{x:Bind c:Converters.Visible(IsLoading), Mode=OneWay}" />
 
                                     <ItemsControl ItemsSource="{x:Bind Collections}">
@@ -69,6 +102,24 @@
                                                         Background="Transparent" BorderThickness="0"
                                                         Padding="8,5" Tag="{x:Bind}"
                                                         Click="OnCollectionClick">
+                                                    <Button.ContextFlyout>
+                                                        <MenuFlyout>
+                                                            <MenuFlyoutItem Text="Open" Tag="{x:Bind}"
+                                                                            Click="OnCollectionClick" />
+                                                            <MenuFlyoutSeparator />
+                                                            <MenuFlyoutItem Text="Rename collection" Tag="{x:Bind}"
+                                                                            Click="OnRenameCollection" />
+                                                            <MenuFlyoutItem Text="Delete all documents" Tag="{x:Bind}"
+                                                                            Click="OnClearCollection" />
+                                                            <MenuFlyoutItem Text="Drop collection" Tag="{x:Bind}"
+                                                                            Click="OnDropCollection">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE74D;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                        </MenuFlyout>
+                                                    </Button.ContextFlyout>
+
                                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                                         <FontIcon Glyph="{x:Bind Glyph}" FontSize="13" />
                                                         <TextBlock Text="{x:Bind Name}"
@@ -88,226 +139,195 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <Button Grid.Row="2" Margin="12" HorizontalAlignment="Stretch" Content="Disconnect"
-                    Command="{x:Bind Shell.DisconnectCommand}" />
+            <StackPanel Grid.Row="3" Margin="12" Spacing="6">
+                <Button HorizontalAlignment="Stretch" Command="{x:Bind Shell.ShowPerformanceCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE9D9;" FontSize="14" />
+                        <TextBlock Text="Performance" />
+                    </StackPanel>
+                </Button>
+                <Button HorizontalAlignment="Stretch" Content="Disconnect"
+                        Command="{x:Bind Shell.DisconnectCommand}" />
+            </StackPanel>
         </Grid>
 
-        <!-- ===================== Main pane ===================== -->
+        <!-- ========================== Main area ========================== -->
         <Grid Grid.Column="1">
+
             <!-- Empty state -->
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8"
-                        Visibility="{x:Bind c:Converters.VisibleIfNull(Shell.ActiveCollection), Mode=OneWay}">
+                        Visibility="{x:Bind c:Converters.Visible(ShowEmptyState), Mode=OneWay}">
                 <FontIcon Glyph="&#xE8A4;" FontSize="32"
                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                 <TextBlock Text="Pick a collection to start querying"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
 
-            <ContentControl x:Name="CollectionHost" HorizontalContentAlignment="Stretch"
-                            VerticalContentAlignment="Stretch"
-                            Content="{x:Bind Shell.ActiveCollection, Mode=OneWay}"
-                            Visibility="{x:Bind c:Converters.VisibleIfNotNull(Shell.ActiveCollection), Mode=OneWay}">
-                <ContentControl.ContentTemplate>
-                    <DataTemplate x:DataType="vm:CollectionWorkspaceViewModel">
-                        <Grid RowSpacing="0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-
-                            <!-- Header + stats -->
-                            <StackPanel Grid.Row="0" Padding="20,12,20,8" Spacing="2">
-                                <TextBlock Text="{x:Bind Namespace}" FontSize="18" FontWeight="SemiBold" />
-                                <TextBlock Text="{x:Bind StatsSummary, Mode=OneWay}" FontSize="12"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-
-                            <!-- Query bar -->
-                            <StackPanel Grid.Row="1" Padding="20,0,20,10" Spacing="8">
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBox Grid.Column="0" Header="Filter"
-                                             Style="{StaticResource CodeTextBoxStyle}"
-                                             Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="{}{ field: value }" />
-
-                                    <Button Grid.Column="1" Content="Run" VerticalAlignment="Bottom"
-                                            Style="{StaticResource AccentButtonStyle}"
-                                            Command="{x:Bind RunQueryCommand}" />
-                                    <Button Grid.Column="2" Content="Reset" VerticalAlignment="Bottom"
-                                            Command="{x:Bind ResetQueryCommand}" />
-                                </Grid>
-
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="90" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBox Grid.Column="0" Header="Project"
-                                             Style="{StaticResource CodeTextBoxStyle}"
-                                             Text="{x:Bind Projection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="{}{ field: 1 }" />
-                                    <TextBox Grid.Column="1" Header="Sort"
-                                             Style="{StaticResource CodeTextBoxStyle}"
-                                             Text="{x:Bind Sort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="{}{ field: -1 }" />
-                                    <NumberBox Grid.Column="2" Header="Limit" Minimum="1" Maximum="1000"
-                                               SpinButtonPlacementMode="Compact"
-                                               Value="{x:Bind Limit, Mode=TwoWay}" />
-                                </Grid>
-
-                                <InfoBar IsOpen="{x:Bind c:Converters.HasText(ErrorMessage), Mode=OneWay}"
-                                         Severity="Error" Message="{x:Bind ErrorMessage, Mode=OneWay}"
-                                         IsClosable="False" />
-
-                                <InfoBar IsOpen="{x:Bind ShowCollectionScanWarning, Mode=OneWay}"
-                                         Severity="Warning" IsClosable="False"
-                                         Title="Collection scan"
-                                         Message="This query has no usable index, so the server reads every document. Add an index on the filtered fields." />
-                            </StackPanel>
-
-                            <!-- Tabs -->
-                            <Pivot Grid.Row="2" Padding="12,0,0,0">
-
-                                <PivotItem Header="Documents">
-                                    <Grid RowSpacing="8">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-
-                                        <ListView Grid.Row="0" ItemsSource="{x:Bind Documents}"
-                                                  SelectionMode="None" Padding="0,0,12,0">
-                                            <ListView.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:DocumentViewModel">
-                                                    <Expander HorizontalAlignment="Stretch" Margin="0,2"
-                                                              IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}">
-                                                        <Expander.Header>
-                                                            <StackPanel Spacing="2" Padding="0,4">
-                                                                <TextBlock Text="{x:Bind IdDescription}"
-                                                                           FontWeight="SemiBold" FontSize="12" />
-                                                                <TextBlock Text="{x:Bind Preview}"
-                                                                           Style="{StaticResource CodeTextBlockStyle}"
-                                                                           TextWrapping="NoWrap"
-                                                                           TextTrimming="CharacterEllipsis"
-                                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                            </StackPanel>
-                                                        </Expander.Header>
-                                                        <TextBlock Text="{x:Bind Json}"
-                                                                   Style="{StaticResource CodeTextBlockStyle}" />
-                                                    </Expander>
-                                                </DataTemplate>
-                                            </ListView.ItemTemplate>
-                                        </ListView>
-
-                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12"
-                                                    Padding="0,0,0,12" VerticalAlignment="Center">
-                                            <Button Content="Previous" Command="{x:Bind PreviousPageCommand}"
-                                                    IsEnabled="{x:Bind CanGoBack, Mode=OneWay}" />
-                                            <Button Content="Next" Command="{x:Bind NextPageCommand}"
-                                                    IsEnabled="{x:Bind HasMore, Mode=OneWay}" />
-                                            <TextBlock Text="{x:Bind ResultSummary, Mode=OneWay}"
-                                                       VerticalAlignment="Center" FontSize="12"
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                            <ProgressRing IsActive="{x:Bind IsBusy, Mode=OneWay}"
-                                                          Width="16" Height="16" />
-                                        </StackPanel>
-                                    </Grid>
-                                </PivotItem>
-
-                                <PivotItem Header="Aggregations">
-                                    <Grid RowSpacing="8" Padding="0,0,12,12">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-
-                                        <TextBox Grid.Row="0" Header="Pipeline" Height="150"
-                                                 AcceptsReturn="True" TextWrapping="Wrap"
-                                                 FontFamily="{StaticResource CodeFontFamily}" FontSize="12"
-                                                 Text="{x:Bind PipelineText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
-                                            <Button Content="Run pipeline"
-                                                    Style="{StaticResource AccentButtonStyle}"
-                                                    Command="{x:Bind RunPipelineCommand}" />
-                                            <TextBlock Text="First 50 results"
-                                                       VerticalAlignment="Center" FontSize="12"
-                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                        </StackPanel>
-
-                                        <Grid Grid.Row="2" RowSpacing="8">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="*" />
-                                            </Grid.RowDefinitions>
-                                            <InfoBar Grid.Row="0" Severity="Error" IsClosable="False"
-                                                     IsOpen="{x:Bind c:Converters.HasText(PipelineError), Mode=OneWay}"
-                                                     Message="{x:Bind PipelineError, Mode=OneWay}" />
-                                            <ListView Grid.Row="1" ItemsSource="{x:Bind PipelineResults}"
-                                                      SelectionMode="None">
-                                                <ListView.ItemTemplate>
-                                                    <DataTemplate x:DataType="vm:DocumentViewModel">
-                                                        <TextBlock Text="{x:Bind Json}" Margin="0,4"
-                                                                   Style="{StaticResource CodeTextBlockStyle}" />
-                                                    </DataTemplate>
-                                                </ListView.ItemTemplate>
-                                            </ListView>
-                                        </Grid>
-                                    </Grid>
-                                </PivotItem>
-
-                                <PivotItem Header="Indexes">
-                                    <ListView ItemsSource="{x:Bind Indexes}" SelectionMode="None"
-                                              Padding="0,0,12,12">
-                                        <ListView.ItemTemplate>
-                                            <DataTemplate x:DataType="models:IndexInfo">
-                                                <Grid ColumnSpacing="16" Padding="0,8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0" Spacing="2">
-                                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
-                                                        <TextBlock Text="{x:Bind KeyDescription}"
-                                                                   Style="{StaticResource CodeTextBlockStyle}"
-                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="1" VerticalAlignment="Center"
-                                                               FontSize="11"
-                                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                               Text="{x:Bind Name}" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListView.ItemTemplate>
-                                    </ListView>
-                                </PivotItem>
-
-                                <PivotItem Header="Explain">
-                                    <ScrollViewer Padding="0,0,12,12">
-                                        <StackPanel Spacing="8">
-                                            <TextBlock Text="Execution plan for the current filter"
-                                                       Style="{StaticResource SectionHeaderStyle}" />
-                                            <TextBlock Style="{StaticResource CodeTextBlockStyle}"
-                                                       Text="{x:Bind ExplainDescription, Mode=OneWay}" />
-                                        </StackPanel>
-                                    </ScrollViewer>
-                                </PivotItem>
-
-                            </Pivot>
-                        </Grid>
+            <!-- Collection tabs -->
+            <TabView x:Name="Tabs" IsAddTabButtonVisible="False"
+                     TabWidthMode="SizeToContent"
+                     TabItemsSource="{x:Bind Shell.Tabs}"
+                     SelectedItem="{x:Bind Shell.ActiveTab, Mode=TwoWay}"
+                     TabCloseRequested="OnTabCloseRequested"
+                     Visibility="{x:Bind c:Converters.Visible(ShowTabs), Mode=OneWay}">
+                <TabView.TabItemTemplate>
+                    <DataTemplate x:DataType="vm:CollectionTabViewModel">
+                        <TabViewItem Header="{x:Bind Collection}"
+                                     ToolTipService.ToolTip="{x:Bind Namespace}">
+                            <TabViewItem.IconSource>
+                                <FontIconSource Glyph="&#xE8A4;" />
+                            </TabViewItem.IconSource>
+                            <local:CollectionTabView Tab="{x:Bind}" />
+                        </TabViewItem>
                     </DataTemplate>
-                </ContentControl.ContentTemplate>
-            </ContentControl>
+                </TabView.TabItemTemplate>
+            </TabView>
+
+            <!-- Performance -->
+            <ScrollViewer Padding="20,12,20,20"
+                          Visibility="{x:Bind c:Converters.Visible(Shell.IsPerformanceOpen), Mode=OneWay}">
+                <StackPanel Spacing="14" MaxWidth="1100" HorizontalAlignment="Left">
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Performance" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="{x:Bind Shell.Performance.Status, Mode=OneWay}" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Start / pause"
+                                Command="{x:Bind Shell.Performance.ToggleCommand}" />
+                        <Button Grid.Column="2" Content="Back to collections"
+                                Command="{x:Bind Shell.ShowCollectionsCommand}" />
+                    </Grid>
+
+                    <InfoBar Severity="Error" IsClosable="False"
+                             IsOpen="{x:Bind c:Converters.HasText(Shell.Performance.ErrorMessage), Mode=OneWay}"
+                             Message="{x:Bind Shell.Performance.ErrorMessage, Mode=OneWay}" />
+
+                    <!-- Operation rates -->
+                    <ItemsControl>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="10" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+
+                        <Border Style="{StaticResource StatTileStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Inserts/sec" Style="{StaticResource StatLabelStyle}" />
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{x:Bind Shell.Performance.InsertRateText, Mode=OneWay}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource StatTileStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Queries/sec" Style="{StaticResource StatLabelStyle}" />
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{x:Bind Shell.Performance.QueryRateText, Mode=OneWay}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource StatTileStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Updates/sec" Style="{StaticResource StatLabelStyle}" />
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{x:Bind Shell.Performance.UpdateRateText, Mode=OneWay}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource StatTileStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Deletes/sec" Style="{StaticResource StatLabelStyle}" />
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{x:Bind Shell.Performance.DeleteRateText, Mode=OneWay}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource StatTileStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Commands/sec" Style="{StaticResource StatLabelStyle}" />
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{x:Bind Shell.Performance.CommandRateText, Mode=OneWay}" />
+                            </StackPanel>
+                        </Border>
+                    </ItemsControl>
+
+                    <Grid ColumnSpacing="24" RowSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Connections"
+                                   Style="{StaticResource SectionHeaderStyle}" />
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                   Text="{x:Bind Shell.Performance.Connections, Mode=OneWay}" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Memory"
+                                   Style="{StaticResource SectionHeaderStyle}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Text="{x:Bind Shell.Performance.Memory, Mode=OneWay}" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Network"
+                                   Style="{StaticResource SectionHeaderStyle}" />
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="16">
+                            <TextBlock Text="{x:Bind Shell.Performance.NetworkIn, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind Shell.Performance.NetworkOut, Mode=OneWay}" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Uptime"
+                                   Style="{StaticResource SectionHeaderStyle}" />
+                        <TextBlock Grid.Row="3" Grid.Column="1"
+                                   Text="{x:Bind Shell.Performance.Uptime, Mode=OneWay}" />
+                    </Grid>
+
+                    <!-- Current operations -->
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Current operations"
+                                       Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" />
+                            <CheckBox Grid.Column="1" Content="Include idle" FontSize="12"
+                                      IsChecked="{x:Bind Shell.Performance.ShowIdleOperations, Mode=TwoWay}" />
+                        </Grid>
+
+                        <ListView ItemsSource="{x:Bind Shell.Performance.Operations}" SelectionMode="None"
+                                  MaxHeight="320" BorderThickness="1" CornerRadius="6"
+                                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="svc:CurrentOperation">
+                                    <Grid ColumnSpacing="12" Padding="0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="90" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind Type}" FontSize="12" />
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Namespace}" FontSize="12"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2" FontSize="12"
+                                                   Text="{x:Bind SecondsRunning}" />
+                                        <Button Grid.Column="3" Content="Kill" FontSize="11" Padding="8,2"
+                                                Tag="{x:Bind}" Click="OnKillOperation" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
     </Grid>
 </UserControl>
