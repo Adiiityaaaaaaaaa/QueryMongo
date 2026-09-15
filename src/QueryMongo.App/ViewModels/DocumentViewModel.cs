@@ -25,6 +25,10 @@ public sealed partial class DocumentViewModel : ObservableObject
         Ordinal = ordinal;
         Preview = BsonJson.ToPreview(document);
         EditorText = "";
+
+        // Compass shows a document's fields immediately rather than as a one-line
+        // preview that has to be opened.
+        IsExpanded = true;
     }
 
     public BsonDocument Document { get; }
@@ -35,6 +39,88 @@ public sealed partial class DocumentViewModel : ObservableObject
 
     public string Json => _json ??= BsonJson.ToPrettyJson(Document);
 
+    /// <summary>
+    /// Field rows for the expanded card, built on first expand. A flat list is rebuilt
+    /// whenever a branch opens, so one ItemsControl can render the whole tree.
+    /// </summary>
+    public ObservableCollection<DocumentFieldViewModel> Fields { get; } = [];
+
+    private List<DocumentFieldViewModel>? _roots;
+
+    private void EnsureFields()
+    {
+        if (_roots is not null) return;
+
+        _roots = DocumentFieldViewModel.ForDocument(Document).ToList();
+
+        // RebuildFields hooks every visible row, roots included, so no separate
+        // subscription is needed here.
+        RebuildFields();
+    }
+
+    /// <summary>
+    /// How many top-level fields a document shows before the "show more" toggle. Compass
+    /// uses 25, so a wide document does not bury the ones after it.
+    /// </summary>
+    private const int DefaultVisibleFields = 25;
+
+    private int _visibleFieldLimit = DefaultVisibleFields;
+
+    /// <summary>Top-level fields in the document, however many are on screen.</summary>
+    public int TotalFieldCount => _roots?.Count ?? 0;
+
+    public bool HasHiddenFields => TotalFieldCount > _visibleFieldLimit;
+
+    public bool CanHideFields => _visibleFieldLimit > DefaultVisibleFields;
+
+    public string ShowMoreLabel =>
+        $"Show {Math.Min(1000, TotalFieldCount - _visibleFieldLimit)} more fields";
+
+    /// <summary>Reveals the next block of fields, as Compass's toggle does.</summary>
+    public void ShowMoreFields()
+    {
+        _visibleFieldLimit += 1000;
+        RebuildFields();
+    }
+
+    public void ShowFewerFields()
+    {
+        _visibleFieldLimit = DefaultVisibleFields;
+        RebuildFields();
+    }
+
+    private void RebuildFields()
+    {
+        if (_roots is null) return;
+
+        Fields.Clear();
+
+        var line = 1;
+
+        foreach (var row in _roots.Take(_visibleFieldLimit).SelectMany(r => r.Visible()))
+        {
+            // A newly created child needs the same hook, or expanding it does nothing.
+            row.PropertyChanged -= OnFieldChanged;
+            row.PropertyChanged += OnFieldChanged;
+
+            // Line numbers follow the flattened view, so they stay contiguous as
+            // branches open and close.
+            row.LineNumber = line++;
+
+            Fields.Add(row);
+        }
+
+        OnPropertyChanged(nameof(TotalFieldCount));
+        OnPropertyChanged(nameof(HasHiddenFields));
+        OnPropertyChanged(nameof(CanHideFields));
+        OnPropertyChanged(nameof(ShowMoreLabel));
+    }
+
+    private void OnFieldChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(DocumentFieldViewModel.IsExpanded)) RebuildFields();
+    }
+
     /// <summary>The <c>_id</c> rendered for the row header, or a marker when absent.</summary>
     public string IdDescription =>
         Document.TryGetValue("_id", out var id) ? id.ToString() ?? "" : "(no _id)";
@@ -44,7 +130,24 @@ public sealed partial class DocumentViewModel : ObservableObject
     /// <summary>Documents from an aggregation may have no _id, so they cannot be edited in place.</summary>
     public bool CanEdit => Id is not null;
 
+    /// <summary>
+    /// Compass shows a document's fields straight away rather than collapsing it to a
+    /// one-line preview, so this starts open. Set in the constructor because a partial
+    /// property cannot carry an initializer.
+    /// </summary>
     [ObservableProperty] public partial bool IsExpanded { get; set; }
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        if (value) EnsureFields();
+    }
+
+    /// <summary>Switches the expanded card between field rows and raw JSON.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFields))]
+    public partial bool ShowRawJson { get; set; }
+
+    public bool ShowFields => !ShowRawJson;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsReadOnly))]

@@ -13,6 +13,13 @@ public sealed record ConnectionProfile
     public DateTimeOffset? LastUsedUtc { get; init; }
     public bool IsFavorite { get; init; }
 
+    /// <summary>
+    /// A <see cref="ConnectionColors"/> code, or null for no colour. The colour tints the
+    /// connection's sidebar rows and the top edge of its tabs, so work against the wrong
+    /// deployment is visible before a query runs.
+    /// </summary>
+    public string? ColorCode { get; init; }
+
     /// <summary>Set when the deployment is only reachable through a bastion host.</summary>
     public SshOptions? Ssh { get; init; }
 

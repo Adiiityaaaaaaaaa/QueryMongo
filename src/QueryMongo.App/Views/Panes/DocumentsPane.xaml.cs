@@ -11,7 +11,40 @@ namespace QueryMongo.App.Views.Panes;
 
 public sealed partial class DocumentsPane : UserControl
 {
-    public DocumentsPane() => InitializeComponent();
+    public DocumentsPane()
+    {
+        InitializeComponent();
+
+        // Show the page size the view model actually starts on.
+        Loaded += (_, _) => SelectPageSize(Model?.Limit ?? 50);
+    }
+
+    private void SelectPageSize(int limit)
+    {
+        foreach (var item in PageSizeBox.Items.OfType<ComboBoxItem>())
+            if (item.Tag is string tag && int.TryParse(tag, out var value) && value == limit)
+            {
+                PageSizeBox.SelectedItem = item;
+                return;
+            }
+
+        PageSizeBox.SelectedItem = null;
+    }
+
+    private async void OnPageSizeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (Model is null) return;
+        if (PageSizeBox.SelectedItem is not ComboBoxItem { Tag: string tag }) return;
+        if (!int.TryParse(tag, out var limit) || limit == Model.Limit) return;
+
+        Model.Limit = limit;
+
+        // Changing the page size while looking at page three would leave the view on a
+        // page that no longer exists, so paging starts again from the top.
+        Model.Skip = 0;
+
+        await Model.RunQueryAsync();
+    }
 
     public static readonly DependencyProperty ModelProperty = DependencyProperty.Register(
         nameof(Model), typeof(DocumentsViewModel), typeof(DocumentsPane), new PropertyMetadata(null));
@@ -32,7 +65,31 @@ public sealed partial class DocumentsPane : UserControl
         set => SetValue(ShowScanWarningProperty, value);
     }
 
+    /// <summary>
+    /// Raised when the Explain button is used. The plan is owned by the collection tab,
+    /// not by this pane, so the tab decides where to show it.
+    /// </summary>
+    public event EventHandler? ExplainRequested;
+
+    /// <summary>Raised for import; the collection tab owns the transfer service.</summary>
+    public event EventHandler? ImportRequested;
+
+    /// <summary>Raised for export. True exports the whole collection, not just the results.</summary>
+    public event EventHandler<bool>? ExportRequested;
+
     // ---- query bar -------------------------------------------------------
+
+    private void OnExplain(object sender, RoutedEventArgs e) =>
+        ExplainRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnImportFile(object sender, RoutedEventArgs e) =>
+        ImportRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnExportResults(object sender, RoutedEventArgs e) =>
+        ExportRequested?.Invoke(this, false);
+
+    private void OnExportCollection(object sender, RoutedEventArgs e) =>
+        ExportRequested?.Invoke(this, true);
 
     private void OnFilterKeyDown(object sender, KeyRoutedEventArgs e)
     {
@@ -61,9 +118,38 @@ public sealed partial class DocumentsPane : UserControl
 
     // ---- per-document actions -------------------------------------------
 
-    private void OnToggleExpand(object sender, RoutedEventArgs e)
+    /// <summary>Compass reveals a document's actions only while the pointer is on its card.</summary>
+    private void OnCardPointerEntered(object sender, PointerRoutedEventArgs e) => RevealActions(sender, true);
+
+    private void OnCardPointerExited(object sender, PointerRoutedEventArgs e) => RevealActions(sender, false);
+
+    private static void RevealActions(object sender, bool shown)
     {
-        if (sender is FrameworkElement { Tag: DocumentViewModel doc }) doc.IsExpanded = !doc.IsExpanded;
+        if (sender is FrameworkElement card && card.FindName("CardActions") is FrameworkElement actions)
+            actions.Opacity = shown ? 1 : 0;
+    }
+
+    private void OnShowMoreFields(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: DocumentViewModel doc }) doc.ShowMoreFields();
+    }
+
+    private void OnShowFewerFields(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: DocumentViewModel doc }) doc.ShowFewerFields();
+    }
+
+    /// <summary>Expands or collapses one field row inside a document card.</summary>
+    private void OnToggleField(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: DocumentFieldViewModel field })
+            field.IsExpanded = !field.IsExpanded;
+    }
+
+    private void OnToggleRawJson(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: DocumentViewModel doc })
+            doc.ShowRawJson = !doc.ShowRawJson;
     }
 
     private void OnEditDocument(object sender, RoutedEventArgs e)

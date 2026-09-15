@@ -156,4 +156,136 @@
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
+    <!-- ===================== Sidebar and tree ===================== -->
+
+    <!--
+        A bare icon button. Compass uses these for the settings gear, the row overflow
+        menus and the tab close button: no chrome until the pointer is on them.
+    -->
+    <Style x:Key="SidebarIconButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="5" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource SidebarIconBrush}" />
+    </Style>
+
+    <!--
+        A global navigation row above the connection list. Compass pads these 16 on the
+        left and 6 top and bottom, with no rounding, so the hover fill runs edge to edge.
+    -->
+    <Style x:Key="SidebarNavItemStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="16,6" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Foreground" Value="{ThemeResource SidebarItemBrush}" />
+    </Style>
+
+    <!--
+        The tree caret. Exactly 16px wide so a nested row lines up under its parent's
+        icon; the glyph inside is 14px, as in Compass.
+    -->
+    <Style x:Key="TreeCaretStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Width" Value="16" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="MinWidth" Value="16" />
+        <Setter Property="MinHeight" Value="16" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource SidebarIconBrush}" />
+    </Style>
+
+    <!-- The clickable body of a tree row: no chrome, the row behind it draws the fill. -->
+    <Style x:Key="TreeRowButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="6,0,0,0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="Foreground" Value="{ThemeResource SidebarItemBrush}" />
+    </Style>
+
+    <!--
+        A query option's label. Compass gives these a fixed 64px column and a 28px line
+        box, so the label sits beside the first line of a multi-line editor rather than
+        centring against the whole thing.
+    -->
+    <Style x:Key="QueryOptionLabelStyle" TargetType="TextBlock">
+        <Setter Property="Width" Value="64" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="0,5,8,0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Foreground" Value="{ThemeResource InkBrush}" />
+    </Style>
+
+    <!-- ===================== Tables ===================== -->
+
+    <Style x:Key="ColumnHeaderStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource InkMutedBrush}" />
+    </Style>
+
+    <Style x:Key="TableCellStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="Foreground" Value="{ThemeResource InkBrush}" />
+    </Style>
+
+    <!-- A LeafyGreen badge: a rounded grey chip with an optional leading glyph. -->
+    <Style x:Key="BadgeStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource BadgeBackgroundBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- A breadcrumb link: bold, in the accent green, with no button chrome. -->
+    <Style x:Key="BreadcrumbLinkStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource AccentGreenBrush}" />
+    </Style>
+
+    <!--
+        A collection sub-tab: Documents, Aggregations, Schema and the rest. Compass draws
+        these as underlined tabs rather than as buttons.
+    -->
+    <Style x:Key="SubTabStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0,0,0,3" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Foreground" Value="{ThemeResource InkMutedBrush}" />
+    </Style>
+
+    <Style x:Key="SubTabSelectedStyle" TargetType="Button" BasedOn="{StaticResource SubTabStyle}">
+        <Setter Property="BorderBrush" Value="{ThemeResource AccentGreenBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{ThemeResource InkStrongBrush}" />
+    </Style>
+
 </ResourceDictionary>

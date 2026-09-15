@@ -1,0 +1,116 @@
+<UserControl
+    x:Class="QueryMongo.App.Views.Workspaces.MyQueriesWorkspaceView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:c="using:QueryMongo.App.Controls"
+    xmlns:cn="using:QueryMongo.Core.Connections">
+
+    <!--
+        Saved queries and favourites across every connection, which is what Compass's
+        "My Queries" workspace lists.
+    -->
+    <Grid Background="{ThemeResource SurfaceBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Padding="16,16,16,8" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="My Queries"
+                       VerticalAlignment="Center"
+                       Style="{StaticResource PageTitleStyle}" />
+
+            <TextBox Grid.Column="1" MaxWidth="320" HorizontalAlignment="Right"
+                     PlaceholderText="Search"
+                     Text="{x:Bind Model.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <ScrollViewer Padding="16,0,16,16" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{x:Bind Model.Queries}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <c:WrapPanel ItemSpacing="16" LineSpacing="16" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="cn:SavedQuery">
+                            <Border Width="280" Height="160"
+                                    Style="{StaticResource CardStyle}"
+                                    Tag="{x:Bind}"
+                                    PointerEntered="OnCardPointerEntered"
+                                    PointerExited="OnCardPointerExited">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6">
+                                        <c:LeafyIcon Glyph="Favorite" Size="14"
+                                                     Foreground="{ThemeResource AccentGreenBrush}"
+                                                     Visibility="{x:Bind c:Converters.Visible(IsFavorite)}" />
+                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Visibility="{x:Bind c:Converters.NotEmpty(Name)}" />
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="1" Margin="0,8"
+                                               Text="{x:Bind Summary}"
+                                               FontSize="12" TextWrapping="Wrap"
+                                               MaxLines="5" TextTrimming="CharacterEllipsis"
+                                               FontFamily="{StaticResource CodeFontFamily}"
+                                               Foreground="{ThemeResource InkMutedBrush}" />
+
+                                    <Grid Grid.Row="2" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" Text="{x:Bind Namespace}"
+                                                   FontSize="11" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource InkFaintBrush}" />
+
+                                        <StackPanel x:Name="CardActions" Grid.Column="1"
+                                                    Orientation="Horizontal" Spacing="4" Opacity="0">
+                                            <Button Style="{StaticResource SidebarIconButtonStyle}"
+                                                    Tag="{x:Bind}" Click="OnOpenQuery"
+                                                    AutomationProperties.Name="Open"
+                                                    ToolTipService.ToolTip="Open">
+                                                <c:LeafyIcon Glyph="OpenNewTab" Size="14" />
+                                            </Button>
+                                            <Button Style="{StaticResource SidebarIconButtonStyle}"
+                                                    Tag="{x:Bind}" Click="OnDeleteQuery"
+                                                    AutomationProperties.Name="Delete"
+                                                    ToolTipService.ToolTip="Delete">
+                                                <c:LeafyIcon Glyph="Trash" Size="14" />
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                        Visibility="{x:Bind c:Converters.Visible(Model.IsEmpty), Mode=OneWay}">
+                <TextBlock Text="No saved queries yet."
+                           HorizontalAlignment="Center"
+                           Foreground="{ThemeResource InkFaintBrush}" />
+                <TextBlock Text="Run a query on a collection and save it to see it here."
+                           FontSize="12" HorizontalAlignment="Center"
+                           Foreground="{ThemeResource InkFaintBrush}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

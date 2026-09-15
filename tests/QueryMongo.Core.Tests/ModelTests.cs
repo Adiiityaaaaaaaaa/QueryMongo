@@ -48,16 +48,42 @@ public class BsonValueRenderingTests
 
 public class ByteSizeTests
 {
+    // Expectations come from Compass's own compactBytes: SI units, two decimals.
     [Theory]
     [InlineData(0, "0 B")]
-    [InlineData(-5, "0 B")]
-    [InlineData(512, "512 B")]
-    [InlineData(1024, "1 KB")]
-    [InlineData(1536, "1.5 KB")]
-    [InlineData(1048576, "1 MB")]
-    public void FormatsReadably(long bytes, string expected)
+    [InlineData(512, "512.00 B")]
+    [InlineData(1000, "1.00 kB")]
+    [InlineData(1500, "1.50 kB")]
+    [InlineData(1_000_000, "1.00 MB")]
+    [InlineData(2_500_000_000, "2.50 GB")]
+    public void FormatsBytesAsCompassDoes(long bytes, string expected)
     {
         Assert.Equal(expected, ByteSize.Format(bytes));
+    }
+
+    [Fact]
+    public void KeepsTheSignOnNegativeSizes()
+    {
+        Assert.Equal("-1.50 kB", ByteSize.Format(-1500));
+    }
+
+    [Theory]
+    [InlineData(1024, "1.00 KiB")]
+    [InlineData(1_048_576, "1.00 MiB")]
+    public void FormatsBinaryUnitsWhenAsked(long bytes, string expected)
+    {
+        Assert.Equal(expected, ByteSize.Format(bytes, si: false));
+    }
+
+    [Theory]
+    [InlineData(0, "0")]
+    [InlineData(999, "999")]
+    [InlineData(1500, "1.5K")]
+    [InlineData(2_000_000, "2M")]
+    [InlineData(1_234_567_890, "1.2B")]
+    public void AbbreviatesCounts(long number, string expected)
+    {
+        Assert.Equal(expected, ByteSize.CompactNumber(number));
     }
 }
 

@@ -3,97 +3,242 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-        The palette. Light and dark are defined as separate theme dictionaries so the
-        app follows the system theme; every colour used anywhere in the UI resolves
-        through one of these keys.
+        MongoDB's LeafyGreen palette (@leafygreen-ui/palette v5), which is what Compass
+        itself is built on. Names in comments are the LeafyGreen ramp entries, so a value
+        here can be checked against Compass's source directly.
+
+        The ramp, for reference:
+          gray   dark4 #112733  dark3 #1C2D38  dark2 #3D4F58  dark1 #5C6C75
+                 base  #889397  light1 #C1C7C6 light2 #E8EDEB light3 #F9FBFA
+          green  dark3 #023430  dark2 #00684A  dark1 #00A35C  base #00ED64
+                 light1 #71F6BA light2 #C0FAE6 light3 #E3FCF7
+          blue   dark3 #0C2657  dark2 #083C90  dark1 #1254B7  base #016BF8
+                 light1 #0498EC light2 #C3E7FE light3 #E1F7FF
+          red    dark3 #5B0000  dark2 #970606  base #DB3030  light1 #FF6960
+                 light2 #FFCDC7 light3 #FFEAE5
+          yellow dark3 #4C2100  dark2 #944F01  base #FFC010  light2 #FFEC9E light3 #FEF7DB
+          purple dark3 #2D0B59  dark2 #5E0C9E  base #B45AF2  light2 #F1D4FD light3 #F9EBFF
+          white #FFFFFF   black #001E2B
     -->
     <ResourceDictionary.ThemeDictionaries>
 
         <ResourceDictionary x:Key="Light">
-            <!-- Sidebar stays dark in both themes, the way data tools usually do. -->
-            <Color x:Key="SidebarBackgroundColor">#001E2B</Color>
-            <Color x:Key="SidebarHoverColor">#0B3A4C</Color>
-            <Color x:Key="SidebarTextColor">#E8EDEB</Color>
-            <Color x:Key="SidebarMutedColor">#889397</Color>
-
-            <Color x:Key="AccentGreenColor">#00684A</Color>
-            <Color x:Key="AccentGreenHoverColor">#00593F</Color>
-            <Color x:Key="AccentBrightColor">#00ED64</Color>
-
+            <!-- App ground: white page, gray.dark2 text -->
             <Color x:Key="SurfaceColor">#FFFFFF</Color>
             <Color x:Key="CanvasColor">#F9FBFA</Color>
             <Color x:Key="HairlineColor">#E8EDEB</Color>
+            <Color x:Key="RowHoverColor">#F9FBFA</Color>
 
-            <Color x:Key="InkColor">#001E2B</Color>
+            <Color x:Key="InkColor">#3D4F58</Color>
+            <Color x:Key="InkStrongColor">#001E2B</Color>
             <Color x:Key="InkMutedColor">#5C6C75</Color>
             <Color x:Key="InkFaintColor">#889397</Color>
 
-            <Color x:Key="DangerColor">#DB3030</Color>
-            <Color x:Key="WarningColor">#B45309</Color>
+            <!--
+                Sidebar, from resizeable-sidebar.tsx. Compass passes useNewTheme, which
+                replaces the green active item with a plain grey one, so the only colour
+                in the tree is the connection's own tag.
+            -->
+            <Color x:Key="SidebarBackgroundColor">#F9FBFA</Color>
+            <Color x:Key="SidebarTextColor">#1C2D38</Color>
+            <Color x:Key="SidebarMutedColor">#889397</Color>
+            <Color x:Key="SidebarIconColor">#1C2D38</Color>
+            <Color x:Key="SidebarItemColor">#1C2D38</Color>
+            <Color x:Key="SidebarItemActiveColor">#1C2D38</Color>
+            <Color x:Key="SidebarItemBackgroundColor">#F9FBFA</Color>
+            <Color x:Key="SidebarItemHoverColor">#E8EDEB</Color>
+            <Color x:Key="SidebarItemActiveBackgroundColor">#E8EDEB</Color>
+            <!-- A disconnected connection, or a namespace only inferred from privileges -->
+            <Color x:Key="SidebarInactiveColor">#5C6C75</Color>
 
-            <!-- JSON tokens -->
+            <!-- Workspace tab strip, from workspace-tabs/tab.tsx -->
+            <Color x:Key="TabStripBackgroundColor">#F9FBFA</Color>
+            <Color x:Key="TabBackgroundColor">#F9FBFA</Color>
+            <Color x:Key="TabSelectedBackgroundColor">#FFFFFF</Color>
+            <Color x:Key="TabBorderColor">#E8EDEB</Color>
+            <Color x:Key="TabTextColor">#889397</Color>
+            <Color x:Key="TabSelectedTextColor">#001E2B</Color>
+
+            <!-- Accent -->
+            <Color x:Key="AccentGreenColor">#00684A</Color>
+            <Color x:Key="AccentGreenHoverColor">#023430</Color>
+            <Color x:Key="AccentBrightColor">#00A35C</Color>
+            <Color x:Key="AccentSoftColor">#E3FCF7</Color>
+
+            <!-- Status -->
+            <Color x:Key="DangerColor">#DB3030</Color>
+            <Color x:Key="DangerSoftColor">#FFEAE5</Color>
+            <Color x:Key="WarningColor">#944F01</Color>
+            <Color x:Key="WarningSoftColor">#FEF7DB</Color>
+            <Color x:Key="InfoColor">#1254B7</Color>
+            <Color x:Key="InfoSoftColor">#E1F7FF</Color>
+            <Color x:Key="FocusRingColor">#016BF8</Color>
+
+            <!-- Badges -->
+            <Color x:Key="BadgeBackgroundColor">#E8EDEB</Color>
+            <Color x:Key="BadgeTextColor">#1C2D38</Color>
+
+            <!--
+                Document view. Compass does not colour values by BSON type: the key is
+                bold, the value is plain, and the type sits in its own grey column.
+            -->
             <Color x:Key="JsonKeyColor">#001E2B</Color>
-            <Color x:Key="JsonStringColor">#12824D</Color>
-            <Color x:Key="JsonNumberColor">#1254B7</Color>
-            <Color x:Key="JsonKeywordColor">#8F4DBF</Color>
+            <Color x:Key="JsonStringColor">#001E2B</Color>
+            <Color x:Key="JsonNumberColor">#001E2B</Color>
+            <Color x:Key="JsonKeywordColor">#5E0C9E</Color>
             <Color x:Key="JsonPunctuationColor">#889397</Color>
+            <Color x:Key="JsonTypeColor">#889397</Color>
+            <Color x:Key="LineNumberColor">#889397</Color>
+
+            <!-- The shell keeps a terminal's dark ground in both themes. -->
+            <Color x:Key="ShellBackgroundColor">#001E2B</Color>
+            <Color x:Key="ShellTextColor">#E8EDEB</Color>
+            <Color x:Key="ShellMutedColor">#889397</Color>
+            <Color x:Key="ShellPromptColor">#00ED64</Color>
         </ResourceDictionary>
 
         <ResourceDictionary x:Key="Dark">
-            <Color x:Key="SidebarBackgroundColor">#001019</Color>
-            <Color x:Key="SidebarHoverColor">#0B3A4C</Color>
-            <Color x:Key="SidebarTextColor">#E8EDEB</Color>
+            <Color x:Key="SurfaceColor">#001E2B</Color>
+            <Color x:Key="CanvasColor">#112733</Color>
+            <Color x:Key="HairlineColor">#3D4F58</Color>
+            <Color x:Key="RowHoverColor">#1C2D38</Color>
+
+            <Color x:Key="InkColor">#FFFFFF</Color>
+            <Color x:Key="InkStrongColor">#FFFFFF</Color>
+            <Color x:Key="InkMutedColor">#C1C7C6</Color>
+            <Color x:Key="InkFaintColor">#889397</Color>
+
+            <Color x:Key="SidebarBackgroundColor">#112733</Color>
+            <Color x:Key="SidebarTextColor">#FFFFFF</Color>
             <Color x:Key="SidebarMutedColor">#889397</Color>
+            <Color x:Key="SidebarIconColor">#FFFFFF</Color>
+            <Color x:Key="SidebarItemColor">#FFFFFF</Color>
+            <Color x:Key="SidebarItemActiveColor">#FFFFFF</Color>
+            <Color x:Key="SidebarItemBackgroundColor">#112733</Color>
+            <Color x:Key="SidebarItemHoverColor">#3D4F58</Color>
+            <Color x:Key="SidebarItemActiveBackgroundColor">#3D4F58</Color>
+            <Color x:Key="SidebarInactiveColor">#C1C7C6</Color>
+
+            <Color x:Key="TabStripBackgroundColor">#1C2D38</Color>
+            <Color x:Key="TabBackgroundColor">#1C2D38</Color>
+            <Color x:Key="TabSelectedBackgroundColor">#001E2B</Color>
+            <Color x:Key="TabBorderColor">#3D4F58</Color>
+            <Color x:Key="TabTextColor">#889397</Color>
+            <Color x:Key="TabSelectedTextColor">#FFFFFF</Color>
 
             <Color x:Key="AccentGreenColor">#00A35C</Color>
-            <Color x:Key="AccentGreenHoverColor">#00C767</Color>
+            <Color x:Key="AccentGreenHoverColor">#00ED64</Color>
             <Color x:Key="AccentBrightColor">#00ED64</Color>
-
-            <Color x:Key="SurfaceColor">#12212B</Color>
-            <Color x:Key="CanvasColor">#0A1922</Color>
-            <Color x:Key="HairlineColor">#1C3543</Color>
-
-            <Color x:Key="InkColor">#E8EDEB</Color>
-            <Color x:Key="InkMutedColor">#A3B2B8</Color>
-            <Color x:Key="InkFaintColor">#7A8A91</Color>
+            <Color x:Key="AccentSoftColor">#023430</Color>
 
             <Color x:Key="DangerColor">#FF6960</Color>
-            <Color x:Key="WarningColor">#EDB95E</Color>
+            <Color x:Key="DangerSoftColor">#5B0000</Color>
+            <Color x:Key="WarningColor">#FFC010</Color>
+            <Color x:Key="WarningSoftColor">#4C2100</Color>
+            <Color x:Key="InfoColor">#0498EC</Color>
+            <Color x:Key="InfoSoftColor">#0C2657</Color>
+            <Color x:Key="FocusRingColor">#0498EC</Color>
 
-            <Color x:Key="JsonKeyColor">#E8EDEB</Color>
-            <Color x:Key="JsonStringColor">#71F6BA</Color>
-            <Color x:Key="JsonNumberColor">#7FB1F5</Color>
-            <Color x:Key="JsonKeywordColor">#D3A6F0</Color>
-            <Color x:Key="JsonPunctuationColor">#7A8A91</Color>
+            <Color x:Key="BadgeBackgroundColor">#3D4F58</Color>
+            <Color x:Key="BadgeTextColor">#E8EDEB</Color>
+
+            <Color x:Key="JsonKeyColor">#FFFFFF</Color>
+            <Color x:Key="JsonStringColor">#FFFFFF</Color>
+            <Color x:Key="JsonNumberColor">#FFFFFF</Color>
+            <Color x:Key="JsonKeywordColor">#B45AF2</Color>
+            <Color x:Key="JsonPunctuationColor">#889397</Color>
+            <Color x:Key="JsonTypeColor">#889397</Color>
+            <Color x:Key="LineNumberColor">#889397</Color>
+
+            <Color x:Key="ShellBackgroundColor">#001E2B</Color>
+            <Color x:Key="ShellTextColor">#E8EDEB</Color>
+            <Color x:Key="ShellMutedColor">#889397</Color>
+            <Color x:Key="ShellPromptColor">#00ED64</Color>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
     <!-- Brushes over the theme colours -->
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{ThemeResource SurfaceColor}" />
+    <SolidColorBrush x:Key="CanvasBrush" Color="{ThemeResource CanvasColor}" />
+    <SolidColorBrush x:Key="HairlineBrush" Color="{ThemeResource HairlineColor}" />
+    <SolidColorBrush x:Key="RowHoverBrush" Color="{ThemeResource RowHoverColor}" />
+
+    <SolidColorBrush x:Key="InkBrush" Color="{ThemeResource InkColor}" />
+    <SolidColorBrush x:Key="InkStrongBrush" Color="{ThemeResource InkStrongColor}" />
+    <SolidColorBrush x:Key="InkMutedBrush" Color="{ThemeResource InkMutedColor}" />
+    <SolidColorBrush x:Key="InkFaintBrush" Color="{ThemeResource InkFaintColor}" />
+
     <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="{ThemeResource SidebarBackgroundColor}" />
-    <SolidColorBrush x:Key="SidebarHoverBrush" Color="{ThemeResource SidebarHoverColor}" />
     <SolidColorBrush x:Key="SidebarTextBrush" Color="{ThemeResource SidebarTextColor}" />
     <SolidColorBrush x:Key="SidebarMutedBrush" Color="{ThemeResource SidebarMutedColor}" />
+    <SolidColorBrush x:Key="SidebarIconBrush" Color="{ThemeResource SidebarIconColor}" />
+    <SolidColorBrush x:Key="SidebarItemBrush" Color="{ThemeResource SidebarItemColor}" />
+    <SolidColorBrush x:Key="SidebarItemActiveBrush" Color="{ThemeResource SidebarItemActiveColor}" />
+    <SolidColorBrush x:Key="SidebarItemBackgroundBrush" Color="{ThemeResource SidebarItemBackgroundColor}" />
+    <SolidColorBrush x:Key="SidebarItemHoverBrush" Color="{ThemeResource SidebarItemHoverColor}" />
+    <SolidColorBrush x:Key="SidebarItemActiveBackgroundBrush" Color="{ThemeResource SidebarItemActiveBackgroundColor}" />
+    <SolidColorBrush x:Key="SidebarInactiveBrush" Color="{ThemeResource SidebarInactiveColor}" />
+
+    <SolidColorBrush x:Key="TabStripBackgroundBrush" Color="{ThemeResource TabStripBackgroundColor}" />
+    <SolidColorBrush x:Key="TabBackgroundBrush" Color="{ThemeResource TabBackgroundColor}" />
+    <SolidColorBrush x:Key="TabSelectedBackgroundBrush" Color="{ThemeResource TabSelectedBackgroundColor}" />
+    <SolidColorBrush x:Key="TabBorderBrush" Color="{ThemeResource TabBorderColor}" />
+    <SolidColorBrush x:Key="TabTextBrush" Color="{ThemeResource TabTextColor}" />
+    <SolidColorBrush x:Key="TabSelectedTextBrush" Color="{ThemeResource TabSelectedTextColor}" />
 
     <SolidColorBrush x:Key="AccentGreenBrush" Color="{ThemeResource AccentGreenColor}" />
     <SolidColorBrush x:Key="AccentGreenHoverBrush" Color="{ThemeResource AccentGreenHoverColor}" />
     <SolidColorBrush x:Key="AccentBrightBrush" Color="{ThemeResource AccentBrightColor}" />
-
-    <SolidColorBrush x:Key="SurfaceBrush" Color="{ThemeResource SurfaceColor}" />
-    <SolidColorBrush x:Key="CanvasBrush" Color="{ThemeResource CanvasColor}" />
-    <SolidColorBrush x:Key="HairlineBrush" Color="{ThemeResource HairlineColor}" />
-
-    <SolidColorBrush x:Key="InkBrush" Color="{ThemeResource InkColor}" />
-    <SolidColorBrush x:Key="InkMutedBrush" Color="{ThemeResource InkMutedColor}" />
-    <SolidColorBrush x:Key="InkFaintBrush" Color="{ThemeResource InkFaintColor}" />
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="{ThemeResource AccentSoftColor}" />
 
     <SolidColorBrush x:Key="DangerBrush" Color="{ThemeResource DangerColor}" />
+    <SolidColorBrush x:Key="DangerSoftBrush" Color="{ThemeResource DangerSoftColor}" />
     <SolidColorBrush x:Key="WarningBrush" Color="{ThemeResource WarningColor}" />
+    <SolidColorBrush x:Key="WarningSoftBrush" Color="{ThemeResource WarningSoftColor}" />
+    <SolidColorBrush x:Key="InfoBrush" Color="{ThemeResource InfoColor}" />
+    <SolidColorBrush x:Key="InfoSoftBrush" Color="{ThemeResource InfoSoftColor}" />
+    <SolidColorBrush x:Key="FocusRingBrush" Color="{ThemeResource FocusRingColor}" />
+
+    <SolidColorBrush x:Key="BadgeBackgroundBrush" Color="{ThemeResource BadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="BadgeTextBrush" Color="{ThemeResource BadgeTextColor}" />
 
     <SolidColorBrush x:Key="JsonKeyBrush" Color="{ThemeResource JsonKeyColor}" />
     <SolidColorBrush x:Key="JsonStringBrush" Color="{ThemeResource JsonStringColor}" />
     <SolidColorBrush x:Key="JsonNumberBrush" Color="{ThemeResource JsonNumberColor}" />
     <SolidColorBrush x:Key="JsonKeywordBrush" Color="{ThemeResource JsonKeywordColor}" />
     <SolidColorBrush x:Key="JsonPunctuationBrush" Color="{ThemeResource JsonPunctuationColor}" />
-    <SolidColorBrush x:Key="JsonPlainBrush" Color="{ThemeResource InkMutedColor}" />
+    <SolidColorBrush x:Key="JsonPlainBrush" Color="{ThemeResource InkColor}" />
+    <SolidColorBrush x:Key="JsonTypeBrush" Color="{ThemeResource JsonTypeColor}" />
+    <SolidColorBrush x:Key="LineNumberBrush" Color="{ThemeResource LineNumberColor}" />
+
+    <SolidColorBrush x:Key="ShellBackgroundBrush" Color="{ThemeResource ShellBackgroundColor}" />
+    <SolidColorBrush x:Key="ShellTextBrush" Color="{ThemeResource ShellTextColor}" />
+    <SolidColorBrush x:Key="ShellMutedBrush" Color="{ThemeResource ShellMutedColor}" />
+    <SolidColorBrush x:Key="ShellPromptBrush" Color="{ThemeResource ShellPromptColor}" />
+
+    <!--
+        Older keys kept so existing panes keep resolving. They point at the same colours
+        under their new names rather than at second definitions.
+    -->
+    <SolidColorBrush x:Key="SidebarHoverBrush" Color="{ThemeResource SidebarItemHoverColor}" />
+    <SolidColorBrush x:Key="SidebarActiveBrush" Color="{ThemeResource SidebarItemActiveBackgroundColor}" />
+    <SolidColorBrush x:Key="SidebarActiveTextBrush" Color="{ThemeResource SidebarItemActiveColor}" />
+
+    <!--
+        LeafyGreen's spacing scale, the one Compass lays everything out on.
+        50:2  100:4  150:6  200:8  300:12  400:16  500:20  600:24  800:32  1000:40  1600:64
+    -->
+    <x:Double x:Key="Spacing50">2</x:Double>
+    <x:Double x:Key="Spacing100">4</x:Double>
+    <x:Double x:Key="Spacing150">6</x:Double>
+    <x:Double x:Key="Spacing200">8</x:Double>
+    <x:Double x:Key="Spacing300">12</x:Double>
+    <x:Double x:Key="Spacing400">16</x:Double>
+    <x:Double x:Key="Spacing500">20</x:Double>
+    <x:Double x:Key="Spacing600">24</x:Double>
+    <x:Double x:Key="Spacing800">32</x:Double>
+
+    <!-- Sidebar tree rows are 28px tall in Compass (compass-connections-navigation). -->
+    <x:Double x:Key="TreeRowHeight">28</x:Double>
 
 </ResourceDictionary>

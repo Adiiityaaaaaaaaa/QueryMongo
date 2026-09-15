@@ -39,7 +39,9 @@ public sealed partial class QueryService(MongoSession session)
             Skip = spec.Skip,
             Limit = spec.Limit + 1,
             BatchSize = Math.Min(spec.Limit + 1, 101),
-            Collation = ParseCollation(spec.Collation)
+            Collation = ParseCollation(spec.Collation),
+            Hint = ParseHint(spec.Hint),
+            MaxTime = spec.MaxTimeMs > 0 ? TimeSpan.FromMilliseconds(spec.MaxTimeMs) : null
         };
 
         var filter = Parse(spec.Filter, "Filter") ?? new BsonDocument();
@@ -181,6 +183,21 @@ public sealed partial class QueryService(MongoSession session)
         var result = BsonJson.ParseDocument(text);
         if (!result.IsValid) throw new QueryInputException(field, result.Error!);
         return result.Value is { ElementCount: 0 } ? null : result.Value;
+    }
+
+    /// <summary>
+    /// A hint is either an index key document or an index name. A bare name is accepted
+    /// with or without quotes, since both are natural to type.
+    /// </summary>
+    private static BsonValue? ParseHint(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var trimmed = text.Trim();
+
+        if (trimmed.StartsWith('{')) return Parse(trimmed, "Index Hint");
+
+        return new BsonString(trimmed.Trim('"', '\''));
     }
 
     private static Collation? ParseCollation(string? text)

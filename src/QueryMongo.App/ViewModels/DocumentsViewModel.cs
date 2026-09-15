@@ -35,10 +35,13 @@ public sealed partial class DocumentsViewModel : ObservableObject
         _queries = queries;
         _history = history;
 
-        Filter = "{}";
+        // Compass starts with an empty filter rather than a literal "{}", so the
+        // placeholder shows through and a fresh query bar reads as untouched.
+        Filter = "";
         Projection = "";
         Sort = "";
         Collation = "";
+        Hint = "";
         Limit = 50;
         ResultSummary = "";
         RawJson = "";
@@ -55,7 +58,18 @@ public sealed partial class DocumentsViewModel : ObservableObject
     [ObservableProperty] public partial int Limit { get; set; }
     [ObservableProperty] public partial int Skip { get; set; }
 
-    [ObservableProperty] public partial bool IsQueryBarExpanded { get; set; }
+    /// <summary>An index to force, as a key document or an index name.</summary>
+    [ObservableProperty] public partial string Hint { get; set; }
+
+    /// <summary>Server-side time limit for the query; zero leaves the server default.</summary>
+    [ObservableProperty] public partial int MaxTimeMs { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OptionsCaretGlyph))]
+    public partial bool IsQueryBarExpanded { get; set; }
+
+    /// <summary>The options toggle points down when closed and up when open.</summary>
+    public string OptionsCaretGlyph => IsQueryBarExpanded ? "CaretUp" : "CaretDown";
 
     // ---- results ---------------------------------------------------------
 
@@ -92,7 +106,9 @@ public sealed partial class DocumentsViewModel : ObservableObject
         Sort = Sort,
         Collation = Collation,
         Skip = Skip,
-        Limit = Limit
+        Limit = Limit,
+        Hint = Hint,
+        MaxTimeMs = MaxTimeMs
     };
 
     public async Task InitializeAsync()
@@ -218,10 +234,12 @@ public sealed partial class DocumentsViewModel : ObservableObject
     [RelayCommand]
     private async Task ResetQueryAsync()
     {
-        Filter = "{}";
+        Filter = "";
         Projection = "";
         Sort = "";
         Collation = "";
+        Hint = "";
+        MaxTimeMs = 0;
         Skip = 0;
         Limit = 50;
         await RunQueryAsync().ConfigureAwait(true);

@@ -34,7 +34,17 @@ public sealed class FileConnectionStore : IConnectionStore, IDisposable
             "connections.json");
     }
 
-    private sealed record Entry(Guid Id, string Name, string Secret, DateTimeOffset? LastUsedUtc, bool IsFavorite);
+    /// <summary>
+    /// The plaintext half of a saved connection. Anything sensitive lives in
+    /// <see cref="Secret"/>; a colour tag is not sensitive, so it stays readable.
+    /// </summary>
+    private sealed record Entry(
+        Guid Id,
+        string Name,
+        string Secret,
+        DateTimeOffset? LastUsedUtc,
+        bool IsFavorite,
+        string? ColorCode = null);
 
     /// <summary>
     /// What the encrypted blob holds. SSH credentials are as sensitive as the
@@ -70,7 +80,8 @@ public sealed class FileConnectionStore : IConnectionStore, IDisposable
                 Protect(JsonSerializer.Serialize(
                     new Secret(profile.ConnectionString, profile.Ssh), JsonOptions)),
                 profile.LastUsedUtc,
-                profile.IsFavorite));
+                profile.IsFavorite,
+                profile.ColorCode));
             await WriteAsync(entries, ct).ConfigureAwait(false);
         }
         finally { _gate.Release(); }
@@ -143,7 +154,8 @@ public sealed class FileConnectionStore : IConnectionStore, IDisposable
                 ConnectionString = secret.ConnectionString,
                 Ssh = secret.Ssh,
                 LastUsedUtc = entry.LastUsedUtc,
-                IsFavorite = entry.IsFavorite
+                IsFavorite = entry.IsFavorite,
+                ColorCode = entry.ColorCode
             };
         }
         catch (Exception e) when (e is CryptographicException or FormatException or JsonException)

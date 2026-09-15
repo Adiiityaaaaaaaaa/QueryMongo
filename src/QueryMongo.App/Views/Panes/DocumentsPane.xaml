@@ -14,172 +14,358 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- ===================== Query bar ===================== -->
-        <Border Grid.Row="0" Background="{ThemeResource SurfaceBrush}"
-                BorderBrush="{ThemeResource HairlineBrush}" BorderThickness="0,0,0,1"
-                Padding="20,10">
-            <StackPanel Spacing="8">
+        <!-- ===================== Toolbar ===================== -->
+        <!--
+            Compass's CRUD toolbar: the query bar, then a row of actions with the
+            document controls pushed to the right. Padded 16 all round with 12 between
+            the two rows, as in crud-toolbar.tsx.
+        -->
+        <StackPanel Grid.Row="0" Spacing="12" Padding="16"
+                    Background="{ThemeResource SurfaceBrush}">
 
-                <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+            <!--
+                The query bar is a bordered card rather than a bare row: white on
+                gray.light2, 6px radius, 8px of padding.
+            -->
+            <Border Background="{ThemeResource SurfaceBrush}"
+                    BorderBrush="{ThemeResource HairlineBrush}"
+                    BorderThickness="1" CornerRadius="6" Padding="8">
+                <StackPanel Spacing="8">
 
-                    <Border Grid.Column="0" Style="{StaticResource FieldLabelStyle}">
-                        <TextBlock Text="Filter" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{ThemeResource InkMutedBrush}" />
-                    </Border>
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                    <TextBox Grid.Column="1" Style="{StaticResource CodeTextBoxStyle}"
-                             PlaceholderText="{}{ field: value }"
-                             Text="{x:Bind Model.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             KeyDown="OnFilterKeyDown" />
+                        <!-- Recent and saved queries -->
+                        <Button Grid.Column="0" Style="{StaticResource SidebarIconButtonStyle}"
+                                VerticalAlignment="Top" Height="28"
+                                AutomationProperties.Name="Recent and saved queries"
+                                ToolTipService.ToolTip="Recent and saved queries">
+                            <c:LeafyIcon Glyph="Clock" Size="14" />
+                            <Button.Flyout>
+                                <Flyout>
+                                    <StackPanel Width="480" Spacing="8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="RECENT AND SAVED"
+                                                       VerticalAlignment="Center"
+                                                       Style="{StaticResource SectionHeaderStyle}" />
+                                            <Button Grid.Column="1" Content="Save current" FontSize="12"
+                                                    Style="{StaticResource SecondaryButtonStyle}"
+                                                    Click="OnSaveFavorite" />
+                                            <Button Grid.Column="2" Content="Clear" FontSize="12" Margin="6,0,0,0"
+                                                    Style="{StaticResource SecondaryButtonStyle}"
+                                                    Command="{x:Bind Model.ClearHistoryCommand}" />
+                                        </Grid>
 
-                    <Button Grid.Column="2" Content="Find" Style="{StaticResource PrimaryButtonStyle}"
-                            Command="{x:Bind Model.RunQueryCommand}" />
-
-                    <Button Grid.Column="3" Content="Reset" Style="{StaticResource SecondaryButtonStyle}"
-                            Command="{x:Bind Model.ResetQueryCommand}" />
-
-                    <ToggleButton Grid.Column="4" Padding="7,5"
-                                  IsChecked="{x:Bind Model.IsQueryBarExpanded, Mode=TwoWay}"
-                                  ToolTipService.ToolTip="More query options">
-                        <FontIcon Glyph="&#xE712;" FontSize="14" />
-                    </ToggleButton>
-
-                    <Button Grid.Column="5" Style="{StaticResource IconButtonStyle}"
-                            ToolTipService.ToolTip="Query history and favourites">
-                        <FontIcon Glyph="&#xE823;" FontSize="14" />
-                        <Button.Flyout>
-                            <Flyout>
-                                <StackPanel Width="480" Spacing="8">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="RECENT AND SAVED"
-                                                   VerticalAlignment="Center"
-                                                   Style="{StaticResource SectionHeaderStyle}" />
-                                        <Button Grid.Column="1" Content="Save current" FontSize="12"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Click="OnSaveFavorite" />
-                                        <Button Grid.Column="2" Content="Clear" FontSize="12" Margin="6,0,0,0"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Command="{x:Bind Model.ClearHistoryCommand}" />
-                                    </Grid>
-
-                                    <ListView ItemsSource="{x:Bind Model.History}" SelectionMode="None"
-                                              MaxHeight="340">
-                                        <ListView.ItemTemplate>
-                                            <DataTemplate x:DataType="conn:SavedQuery">
-                                                <Grid ColumnSpacing="8" Padding="0,4">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0">
-                                                        <StackPanel Orientation="Horizontal" Spacing="5"
-                                                                    Visibility="{x:Bind c:Converters.NotEmpty(Name)}">
-                                                            <FontIcon Glyph="&#xE735;" FontSize="11"
-                                                                      Foreground="{ThemeResource AccentGreenBrush}" />
-                                                            <TextBlock Text="{x:Bind Name}" FontSize="12"
-                                                                       FontWeight="SemiBold" />
+                                        <ListView ItemsSource="{x:Bind Model.History}" SelectionMode="None"
+                                                  MaxHeight="340">
+                                            <ListView.ItemTemplate>
+                                                <DataTemplate x:DataType="conn:SavedQuery">
+                                                    <Grid ColumnSpacing="8" Padding="0,4">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <StackPanel Orientation="Horizontal" Spacing="5"
+                                                                        Visibility="{x:Bind c:Converters.NotEmpty(Name)}">
+                                                                <c:LeafyIcon Glyph="Favorite" Size="12"
+                                                                             Foreground="{ThemeResource AccentGreenBrush}" />
+                                                                <TextBlock Text="{x:Bind Name}" FontSize="12"
+                                                                           FontWeight="SemiBold" />
+                                                            </StackPanel>
+                                                            <TextBlock Text="{x:Bind Summary}"
+                                                                       Style="{StaticResource CodeTextBlockStyle}"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       TextWrapping="NoWrap"
+                                                                       Foreground="{ThemeResource InkMutedBrush}" />
                                                         </StackPanel>
-                                                        <TextBlock Text="{x:Bind Summary}"
-                                                                   Style="{StaticResource CodeTextBlockStyle}"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   TextWrapping="NoWrap"
-                                                                   Foreground="{ThemeResource InkMutedBrush}" />
-                                                    </StackPanel>
-                                                    <Button Grid.Column="1" Content="Use" FontSize="11"
-                                                            Style="{StaticResource SecondaryButtonStyle}"
-                                                            Padding="8,2" Tag="{x:Bind}" Click="OnUseSavedQuery" />
-                                                    <Button Grid.Column="2" Style="{StaticResource IconButtonStyle}"
-                                                            Tag="{x:Bind}" Click="OnDeleteSavedQuery">
-                                                        <FontIcon Glyph="&#xE74D;" FontSize="12" />
-                                                    </Button>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListView.ItemTemplate>
-                                    </ListView>
-                                </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
+                                                        <Button Grid.Column="1" Content="Use" FontSize="11"
+                                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                                Padding="8,2" Tag="{x:Bind}" Click="OnUseSavedQuery" />
+                                                        <Button Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}"
+                                                                Tag="{x:Bind}" Click="OnDeleteSavedQuery">
+                                                            <c:LeafyIcon Glyph="Trash" Size="12" />
+                                                        </Button>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListView.ItemTemplate>
+                                        </ListView>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
 
-                    <Button Grid.Column="6" Style="{StaticResource IconButtonStyle}"
-                            ToolTipService.ToolTip="More actions">
-                        <FontIcon Glyph="&#xE10C;" FontSize="14" />
-                        <Button.Flyout>
+                        <!-- The label column is fixed at 64px so every option lines up. -->
+                        <TextBlock Grid.Column="1" Text="Filter" Width="64" Height="28"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   VerticalAlignment="Top" TextAlignment="Left"
+                                   Padding="0,5,8,0"
+                                   Foreground="{ThemeResource InkBrush}" />
+
+                        <TextBox Grid.Column="2" Style="{StaticResource CodeTextBoxStyle}"
+                                 PlaceholderText="Type a query: { field: 'value' }"
+                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                 Text="{x:Bind Model.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 KeyDown="OnFilterKeyDown" />
+
+                        <Button Grid.Column="3" Content="Explain" VerticalAlignment="Top"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="OnExplain" />
+
+                        <Button Grid.Column="4" Content="Reset" VerticalAlignment="Top"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{x:Bind Model.ResetQueryCommand}" />
+
+                        <Button Grid.Column="5" Content="Find" VerticalAlignment="Top"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Command="{x:Bind Model.RunQueryCommand}" />
+
+                        <ToggleButton Grid.Column="6" Padding="6" VerticalAlignment="Top"
+                                      Background="Transparent" BorderThickness="0"
+                                      IsChecked="{x:Bind Model.IsQueryBarExpanded, Mode=TwoWay}"
+                                      AutomationProperties.Name="More query options"
+                                      ToolTipService.ToolTip="More query options">
+                            <c:LeafyIcon Glyph="{x:Bind Model.OptionsCaretGlyph, Mode=OneWay}" Size="14" />
+                        </ToggleButton>
+                    </Grid>
+
+                    <!--
+                        The expanded options, in Compass's own layout and order:
+                        project / sort + maxTimeMS / collation + skip + limit / hint.
+                    -->
+                    <StackPanel Spacing="8" Padding="8,0"
+                                Visibility="{x:Bind c:Converters.Visible(Model.IsQueryBarExpanded), Mode=OneWay}">
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Project" Style="{StaticResource QueryOptionLabelStyle}" />
+                            <TextBox Grid.Column="1" Style="{StaticResource CodeTextBoxStyle}"
+                                     PlaceholderText="{}{ field: 0 }"
+                                     Text="{x:Bind Model.Projection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Sort" Style="{StaticResource QueryOptionLabelStyle}" />
+                            <TextBox Grid.Column="1" Style="{StaticResource CodeTextBoxStyle}"
+                                     PlaceholderText="{}{ field: -1 }"
+                                     Text="{x:Bind Model.Sort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Grid.Column="2" Text="Max Time MS" Style="{StaticResource QueryOptionLabelStyle}" Width="90" />
+                            <NumberBox Grid.Column="3" Width="110" Minimum="0" PlaceholderText="60000"
+                                       SpinButtonPlacementMode="Hidden"
+                                       Value="{x:Bind Model.MaxTimeMs, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Collation" Style="{StaticResource QueryOptionLabelStyle}" />
+                            <TextBox Grid.Column="1" Style="{StaticResource CodeTextBoxStyle}"
+                                     PlaceholderText="{}{ locale: 'simple' }"
+                                     Text="{x:Bind Model.Collation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Grid.Column="2" Text="Skip" Style="{StaticResource QueryOptionLabelStyle}" Width="40" />
+                            <NumberBox Grid.Column="3" Width="90" Minimum="0" PlaceholderText="0"
+                                       SpinButtonPlacementMode="Hidden"
+                                       Value="{x:Bind Model.Skip, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="4" Text="Limit" Style="{StaticResource QueryOptionLabelStyle}" Width="44" />
+                            <NumberBox Grid.Column="5" Width="90" Minimum="1" Maximum="1000" PlaceholderText="0"
+                                       SpinButtonPlacementMode="Hidden"
+                                       Value="{x:Bind Model.Limit, Mode=TwoWay}" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Index Hint" Style="{StaticResource QueryOptionLabelStyle}" />
+                            <TextBox Grid.Column="1" Style="{StaticResource CodeTextBoxStyle}"
+                                     PlaceholderText="{}{ field: -1 } or &quot;indexName&quot;"
+                                     Text="{x:Bind Model.Hint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Actions row: writes on the left, document controls on the right. -->
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center">
+
+                    <DropDownButton Style="{StaticResource SecondaryButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <c:LeafyIcon Glyph="Plus" Size="12" />
+                            <TextBlock Text="Add Data" FontSize="12" />
+                        </StackPanel>
+                        <DropDownButton.Flyout>
                             <MenuFlyout>
-                                <MenuFlyoutItem Text="Insert document" Click="OnInsertDocument">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE710;" />
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutItem Text="Update matching documents" Click="OnUpdateMany" />
-                                <MenuFlyoutItem Text="Delete matching documents" Click="OnDeleteMany">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE74D;" />
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                                <MenuFlyoutSeparator />
-                                <MenuFlyoutItem Text="Export query to language" Click="OnExportQuery" />
-                                <MenuFlyoutSeparator />
-                                <MenuFlyoutItem Text="Expand all" Command="{x:Bind Model.ExpandAllCommand}" />
-                                <MenuFlyoutItem Text="Collapse all" Command="{x:Bind Model.CollapseAllCommand}" />
+                                <MenuFlyoutItem Text="Insert document" Click="OnInsertDocument" />
+                                <MenuFlyoutItem Text="Import JSON or CSV file" Click="OnImportFile" />
                             </MenuFlyout>
-                        </Button.Flyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+
+                    <DropDownButton Style="{StaticResource SecondaryButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <c:LeafyIcon Glyph="Edit" Size="12" />
+                            <TextBlock Text="Update / Delete" FontSize="12" />
+                        </StackPanel>
+                        <DropDownButton.Flyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Bulk update documents" Click="OnUpdateMany" />
+                                <MenuFlyoutItem Text="Bulk delete documents" Click="OnDeleteMany" />
+                            </MenuFlyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+
+                    <DropDownButton Style="{StaticResource SecondaryButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <c:LeafyIcon Glyph="Export" Size="12" />
+                            <TextBlock Text="Export Data" FontSize="12" />
+                        </StackPanel>
+                        <DropDownButton.Flyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Export query results" Click="OnExportResults" />
+                                <MenuFlyoutItem Text="Export the full collection" Click="OnExportCollection" />
+                            </MenuFlyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+
+                    <Button Style="{StaticResource SecondaryButtonStyle}" Click="OnExportQuery"
+                            AutomationProperties.Name="Export query to language"
+                            ToolTipService.ToolTip="Export query to language">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <c:LeafyIcon Glyph="Code" Size="12" />
+                            <TextBlock Text="Export Code" FontSize="12" />
+                        </StackPanel>
                     </Button>
-                </Grid>
+                </StackPanel>
 
-                <Grid ColumnSpacing="8" RowSpacing="8"
-                      Visibility="{x:Bind c:Converters.Visible(Model.IsQueryBarExpanded), Mode=OneWay}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center">
 
-                    <TextBox Grid.Row="0" Grid.Column="0" Header="Project"
-                             Style="{StaticResource CodeTextBoxStyle}"
-                             PlaceholderText="{}{ field: 1 }"
-                             Text="{x:Bind Model.Projection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBox Grid.Row="0" Grid.Column="1" Header="Sort"
-                             Style="{StaticResource CodeTextBoxStyle}"
-                             PlaceholderText="{}{ field: -1 }"
-                             Text="{x:Bind Model.Sort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <NumberBox Grid.Row="0" Grid.Column="2" Header="Limit" Minimum="1" Maximum="1000"
-                               Width="100" SpinButtonPlacementMode="Compact"
-                               Value="{x:Bind Model.Limit, Mode=TwoWay}" />
-                    <NumberBox Grid.Row="0" Grid.Column="3" Header="Skip" Minimum="0"
-                               Width="100" SpinButtonPlacementMode="Compact"
-                               Value="{x:Bind Model.Skip, Mode=TwoWay}" />
+                    <!--
+                        Page size, with Compass's own steps. The selection is applied in
+                        code: the items carry strings and the limit is a number, so a
+                        two-way binding through the tag would quietly never round-trip.
+                    -->
+                    <ComboBox x:Name="PageSizeBox" Width="76" FontSize="12"
+                              AutomationProperties.Name="Documents per page"
+                              ToolTipService.ToolTip="Documents per page"
+                              SelectionChanged="OnPageSizeChanged">
+                        <ComboBoxItem Content="25" Tag="25" />
+                        <ComboBoxItem Content="50" Tag="50" />
+                        <ComboBoxItem Content="75" Tag="75" />
+                        <ComboBoxItem Content="100" Tag="100" />
+                    </ComboBox>
 
-                    <TextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Header="Collation"
-                             Style="{StaticResource CodeTextBoxStyle}"
-                             PlaceholderText="{}{ locale: 'en' }"
-                             Text="{x:Bind Model.Collation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                </Grid>
-            </StackPanel>
-        </Border>
+                    <TextBlock VerticalAlignment="Center" FontSize="13"
+                               Text="{x:Bind Model.ResultSummary, Mode=OneWay}"
+                               Foreground="{ThemeResource InkBrush}" />
+
+                    <ProgressRing Width="14" Height="14"
+                                  IsActive="{x:Bind Model.IsBusy, Mode=OneWay}" />
+
+                    <Button Style="{StaticResource SidebarIconButtonStyle}"
+                            Command="{x:Bind Model.RunQueryCommand}"
+                            AutomationProperties.Name="Refresh documents"
+                            ToolTipService.ToolTip="Refresh documents">
+                        <c:LeafyIcon Glyph="Refresh" Size="14" />
+                    </Button>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource SidebarIconButtonStyle}"
+                                Command="{x:Bind Model.PreviousPageCommand}"
+                                AutomationProperties.Name="Previous page"
+                                ToolTipService.ToolTip="Previous page">
+                            <c:LeafyIcon Glyph="ChevronLeft" Size="14" />
+                        </Button>
+                        <Button Style="{StaticResource SidebarIconButtonStyle}"
+                                Command="{x:Bind Model.NextPageCommand}"
+                                AutomationProperties.Name="Next page"
+                                ToolTipService.ToolTip="Next page">
+                            <c:LeafyIcon Glyph="ChevronRight" Size="14" />
+                        </Button>
+                    </StackPanel>
+
+                    <DropDownButton Style="{StaticResource SidebarIconButtonStyle}"
+                                    AutomationProperties.Name="Output options"
+                                    ToolTipService.ToolTip="Output options">
+                        <c:LeafyIcon Glyph="VerticalEllipsis" Size="14" />
+                        <DropDownButton.Flyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Expand all documents"
+                                                Command="{x:Bind Model.ExpandAllCommand}" />
+                                <MenuFlyoutItem Text="Collapse all documents"
+                                                Command="{x:Bind Model.CollapseAllCommand}" />
+                            </MenuFlyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+
+                    <!-- View switcher, in Compass's order: list, JSON, table. -->
+                    <Border CornerRadius="4" BorderThickness="1"
+                            BorderBrush="{ThemeResource HairlineBrush}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="ListButton" Click="OnShowList" Padding="8,4"
+                                    Background="Transparent" BorderThickness="0"
+                                    AutomationProperties.Name="Document list"
+                                    ToolTipService.ToolTip="Document list">
+                                <c:LeafyIcon Glyph="Menu" Size="14" />
+                            </Button>
+                            <Button x:Name="JsonButton" Click="OnShowJson" Padding="8,4"
+                                    Background="Transparent" BorderThickness="0"
+                                    AutomationProperties.Name="E-JSON view"
+                                    ToolTipService.ToolTip="E-JSON view">
+                                <c:LeafyIcon Glyph="CurlyBraces" Size="14" />
+                            </Button>
+                            <Button x:Name="TableButton" Click="OnShowTable" Padding="8,4"
+                                    Background="Transparent" BorderThickness="0"
+                                    AutomationProperties.Name="Table view"
+                                    ToolTipService.ToolTip="Table view">
+                                <c:LeafyIcon Glyph="Table" Size="14" />
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
 
         <!-- ===================== Status strip ===================== -->
-        <StackPanel Grid.Row="1" Spacing="6" Padding="20,8,20,4">
+        <StackPanel Grid.Row="1" Spacing="6" Padding="16,0,16,8">
             <InfoBar Severity="Error" IsClosable="False"
                      IsOpen="{x:Bind c:Converters.HasText(Model.ErrorMessage), Mode=OneWay}"
                      Message="{x:Bind Model.ErrorMessage, Mode=OneWay}" />
@@ -191,115 +377,120 @@
             <InfoBar Severity="Warning" IsClosable="False" Title="Collection scan"
                      IsOpen="{x:Bind ShowScanWarning, Mode=OneWay}"
                      Message="This query has no usable index, so the server reads every document. Add an index on the filtered fields." />
-
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <!-- View mode switcher -->
-                <Border Grid.Column="0" CornerRadius="4" BorderThickness="1"
-                        BorderBrush="{ThemeResource HairlineBrush}">
-                    <StackPanel Orientation="Horizontal">
-                        <Button x:Name="ListButton" Click="OnShowList" Padding="10,5"
-                                Background="Transparent" BorderThickness="0"
-                                ToolTipService.ToolTip="List view">
-                            <FontIcon Glyph="&#xE8A4;" FontSize="14" />
-                        </Button>
-                        <Button x:Name="TableButton" Click="OnShowTable" Padding="10,5"
-                                Background="Transparent" BorderThickness="0"
-                                ToolTipService.ToolTip="Table view">
-                            <FontIcon Glyph="&#xE80A;" FontSize="14" />
-                        </Button>
-                        <Button x:Name="JsonButton" Click="OnShowJson" Padding="10,5"
-                                Background="Transparent" BorderThickness="0"
-                                ToolTipService.ToolTip="JSON view">
-                            <FontIcon Glyph="&#xE943;" FontSize="14" />
-                        </Button>
-                    </StackPanel>
-                </Border>
-
-                <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
-                           Style="{StaticResource MutedTextStyle}"
-                           Text="{x:Bind Model.ResultSummary, Mode=OneWay}" />
-
-                <ProgressRing Grid.Column="2" IsActive="{x:Bind Model.IsBusy, Mode=OneWay}"
-                              Width="16" Height="16" />
-            </Grid>
         </StackPanel>
 
         <!-- ===================== Results ===================== -->
         <Grid Grid.Row="2" Background="{ThemeResource CanvasBrush}">
 
-            <!-- List view: one card per document -->
-            <ScrollViewer Padding="20,12,20,0"
+            <!--
+                List view. Compass draws each document as a keyline card: a 1px hairline
+                at 8px radius with 4px between cards, the fields shown straight away, and
+                the row actions floating at the top right only while the pointer is over
+                the card.
+            -->
+            <ScrollViewer Padding="16,0,16,0"
                           Visibility="{x:Bind c:Converters.Visible(Model.IsListMode), Mode=OneWay}">
                 <ItemsControl ItemsSource="{x:Bind Model.Documents}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:DocumentViewModel">
-                            <Border Style="{StaticResource DocumentCardStyle}">
+                            <Border Margin="0,0,0,4" CornerRadius="8" BorderThickness="1"
+                                    Background="{ThemeResource SurfaceBrush}"
+                                    BorderBrush="{ThemeResource HairlineBrush}"
+                                    Tag="{x:Bind}"
+                                    PointerEntered="OnCardPointerEntered"
+                                    PointerExited="OnCardPointerExited">
                                 <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
+                                    <StackPanel Padding="12" Spacing="8">
 
-                                    <!-- Card header -->
-                                    <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                        <!--
+                                            Field rows follow Compass's own anatomy: line
+                                            number, one caret width of indent per level,
+                                            the expand caret, a bold key, ": ", the value,
+                                            then the type in grey.
+                                        -->
+                                        <ItemsControl ItemsSource="{x:Bind Fields}"
+                                                      Visibility="{x:Bind c:Converters.Visible(ShowFields), Mode=OneWay}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:DocumentFieldViewModel">
+                                                    <Grid MinHeight="16">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="16" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
 
-                                        <Button Grid.Column="0" Style="{StaticResource IconButtonStyle}"
-                                                Tag="{x:Bind}" Click="OnToggleExpand" Padding="4">
-                                            <FontIcon Glyph="&#xE76C;" FontSize="10" />
-                                        </Button>
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{x:Bind LineNumber}"
+                                                                   FontSize="12" LineHeight="16"
+                                                                   TextAlignment="Right"
+                                                                   Margin="0,0,4,0"
+                                                                   FontFamily="{StaticResource CodeFontFamily}"
+                                                                   Foreground="{ThemeResource LineNumberBrush}" />
 
-                                        <TextBlock Grid.Column="1" Text="{x:Bind IdDescription}"
-                                                   FontSize="12" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center"
-                                                   FontFamily="{StaticResource CodeFontFamily}"
-                                                   TextTrimming="CharacterEllipsis" />
+                                                        <Border Grid.Column="1" Width="{x:Bind Indent}" />
 
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
-                                            <Button Style="{StaticResource IconButtonStyle}" Tag="{x:Bind}"
-                                                    Click="OnEditDocument" ToolTipService.ToolTip="Edit">
-                                                <FontIcon Glyph="&#xE70F;" FontSize="12" />
-                                            </Button>
-                                            <Button Style="{StaticResource IconButtonStyle}" Tag="{x:Bind}"
-                                                    Click="OnCopyDocument" ToolTipService.ToolTip="Copy JSON">
-                                                <FontIcon Glyph="&#xE8C8;" FontSize="12" />
-                                            </Button>
-                                            <Button Style="{StaticResource IconButtonStyle}" Tag="{x:Bind}"
-                                                    Click="OnCloneDocument" ToolTipService.ToolTip="Clone">
-                                                <FontIcon Glyph="&#xF413;" FontSize="12" />
-                                            </Button>
-                                            <Button Style="{StaticResource IconButtonStyle}" Tag="{x:Bind}"
-                                                    Click="OnDeleteDocument" ToolTipService.ToolTip="Delete">
-                                                <FontIcon Glyph="&#xE74D;" FontSize="12"
-                                                          Foreground="{ThemeResource DangerBrush}" />
-                                            </Button>
+                                                        <Button Grid.Column="2" Padding="0" Margin="0"
+                                                                MinWidth="16" MinHeight="16"
+                                                                Background="Transparent" BorderThickness="0"
+                                                                Tag="{x:Bind}" Click="OnToggleField"
+                                                                Visibility="{x:Bind c:Converters.Visible(HasChildren)}">
+                                                            <c:LeafyIcon Size="12"
+                                                                         Glyph="{x:Bind CaretGlyph, Mode=OneWay}"
+                                                                         Foreground="{ThemeResource InkMutedBrush}" />
+                                                        </Button>
+
+                                                        <TextBlock Grid.Column="3" Text="{x:Bind Name}"
+                                                                   FontSize="12" LineHeight="16"
+                                                                   FontWeight="Bold"
+                                                                   MaxWidth="260"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   FontFamily="{StaticResource CodeFontFamily}"
+                                                                   Foreground="{ThemeResource JsonKeyBrush}" />
+
+                                                        <TextBlock Grid.Column="4" Text=": "
+                                                                   FontSize="12" LineHeight="16"
+                                                                   FontFamily="{StaticResource CodeFontFamily}"
+                                                                   Foreground="{ThemeResource JsonPunctuationBrush}" />
+
+                                                        <TextBlock Grid.Column="5"
+                                                                   Text="{x:Bind RenderedValue}"
+                                                                   FontSize="12" LineHeight="16"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="NoWrap"
+                                                                   IsTextSelectionEnabled="True"
+                                                                   FontFamily="{StaticResource CodeFontFamily}"
+                                                                   Foreground="{ThemeResource JsonPlainBrush}" />
+
+                                                        <TextBlock Grid.Column="6" Text="{x:Bind TypeName}"
+                                                                   FontSize="12" LineHeight="16"
+                                                                   Margin="4,0,0,0"
+                                                                   FontFamily="{StaticResource CodeFontFamily}"
+                                                                   Foreground="{ThemeResource JsonTypeBrush}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <!-- Compass shows 25 fields, then offers the rest. -->
+                                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="28,0,0,0"
+                                                    Visibility="{x:Bind c:Converters.Visible(ShowFields), Mode=OneWay}">
+                                            <HyperlinkButton Padding="0" FontSize="11" Tag="{x:Bind}"
+                                                             Click="OnShowMoreFields"
+                                                             Content="{x:Bind ShowMoreLabel, Mode=OneWay}"
+                                                             Visibility="{x:Bind c:Converters.Visible(HasHiddenFields), Mode=OneWay}" />
+                                            <HyperlinkButton Padding="0" FontSize="11" Tag="{x:Bind}"
+                                                             Click="OnShowFewerFields"
+                                                             Content="Show fewer fields"
+                                                             Visibility="{x:Bind c:Converters.Visible(CanHideFields), Mode=OneWay}" />
                                         </StackPanel>
-                                    </Grid>
-
-                                    <!-- Collapsed preview -->
-                                    <TextBlock Grid.Row="1" Margin="12,0,12,10"
-                                               Style="{StaticResource CodeTextBlockStyle}"
-                                               c:JsonHighlight.Json="{x:Bind Preview}"
-                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
-                                               Visibility="{x:Bind c:Converters.Hidden(IsExpanded), Mode=OneWay}" />
-
-                                    <!-- Expanded body -->
-                                    <StackPanel Grid.Row="1" Margin="12,0,12,10" Spacing="8"
-                                                Visibility="{x:Bind c:Converters.Visible(IsExpanded), Mode=OneWay}">
 
                                         <TextBlock Style="{StaticResource CodeTextBlockStyle}"
                                                    c:JsonHighlight.Json="{x:Bind Json}"
-                                                   Visibility="{x:Bind c:Converters.Visible(IsReadOnly), Mode=OneWay}" />
+                                                   Visibility="{x:Bind c:Converters.Visible(ShowRawJson), Mode=OneWay}" />
 
                                         <StackPanel Spacing="8"
                                                     Visibility="{x:Bind c:Converters.Visible(IsEditing), Mode=OneWay}">
@@ -317,6 +508,48 @@
                                                         Tag="{x:Bind}" Click="OnCancelEdit" />
                                             </StackPanel>
                                         </StackPanel>
+                                    </StackPanel>
+
+                                    <!--
+                                        The actions float over the card's top right rather
+                                        than taking a header row of their own, and only
+                                        appear under the pointer.
+                                    -->
+                                    <StackPanel x:Name="CardActions" Orientation="Horizontal"
+                                                HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                Margin="0,12,12,0" Spacing="4" Opacity="0"
+                                                Visibility="{x:Bind c:Converters.Visible(IsReadOnly), Mode=OneWay}">
+                                        <Button Style="{StaticResource SidebarIconButtonStyle}" Tag="{x:Bind}"
+                                                Click="OnToggleRawJson"
+                                                AutomationProperties.Name="Toggle raw JSON"
+                                                ToolTipService.ToolTip="Toggle raw JSON">
+                                            <c:LeafyIcon Glyph="CurlyBraces" Size="14" />
+                                        </Button>
+                                        <Button Style="{StaticResource SidebarIconButtonStyle}" Tag="{x:Bind}"
+                                                Click="OnEditDocument"
+                                                AutomationProperties.Name="Edit document"
+                                                ToolTipService.ToolTip="Edit document">
+                                            <c:LeafyIcon Glyph="Edit" Size="14" />
+                                        </Button>
+                                        <Button Style="{StaticResource SidebarIconButtonStyle}" Tag="{x:Bind}"
+                                                Click="OnCopyDocument"
+                                                AutomationProperties.Name="Copy document"
+                                                ToolTipService.ToolTip="Copy document">
+                                            <c:LeafyIcon Glyph="Copy" Size="14" />
+                                        </Button>
+                                        <Button Style="{StaticResource SidebarIconButtonStyle}" Tag="{x:Bind}"
+                                                Click="OnCloneDocument"
+                                                AutomationProperties.Name="Clone document"
+                                                ToolTipService.ToolTip="Clone document">
+                                            <c:LeafyIcon Glyph="Clone" Size="14" />
+                                        </Button>
+                                        <Button Style="{StaticResource SidebarIconButtonStyle}" Tag="{x:Bind}"
+                                                Click="OnDeleteDocument"
+                                                Foreground="{ThemeResource DangerBrush}"
+                                                AutomationProperties.Name="Remove document"
+                                                ToolTipService.ToolTip="Remove document">
+                                            <c:LeafyIcon Glyph="Trash" Size="14" />
+                                        </Button>
                                     </StackPanel>
                                 </Grid>
                             </Border>

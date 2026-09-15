@@ -12,10 +12,6 @@ namespace QueryMongo.App.ViewModels;
 /// </summary>
 public sealed partial class DatabaseNodeViewModel(DatabaseInfo info, CatalogService catalog) : ObservableObject
 {
-    /// <summary>Segoe Fluent chevrons, pointing down when open and right when closed.</summary>
-    private const string ChevronDown = "";
-    private const string ChevronRight = "";
-
     private readonly CatalogService _catalog = catalog;
 
     /// <summary>Everything loaded for this database, before the sidebar filter.</summary>
@@ -27,16 +23,28 @@ public sealed partial class DatabaseNodeViewModel(DatabaseInfo info, CatalogServ
     [ObservableProperty] public partial bool IsLoading { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChevronGlyph))]
+    [NotifyPropertyChangedFor(nameof(CaretGlyph))]
     public partial bool IsExpanded { get; set; }
 
-    public string ChevronGlyph => IsExpanded ? ChevronDown : ChevronRight;
+    /// <summary>The tree caret, pointing down when the branch is open.</summary>
+    public string CaretGlyph => IsExpanded ? "CaretDown" : "CaretRight";
+
+    /// <summary>The glyph Compass gives a database row in the sidebar.</summary>
+    // Constant today, but x:Bind resolves against the instance, so it stays one.
+#pragma warning disable CA1822
+    public string IconGlyph => "Database";
+#pragma warning restore CA1822
 
     public DatabaseInfo Info { get; } = info;
 
     public string Name => Info.Name;
 
     public string SizeDescription => ByteSize.Format(Info.SizeOnDisk);
+
+    /// <summary>Collection count, available once the database has been expanded.</summary>
+    public string CountDescription => _loaded
+        ? _all.Count == 1 ? "1 collection" : $"{_all.Count} collections"
+        : "";
 
     public ObservableCollection<CollectionNodeViewModel> Collections { get; } = [];
 
@@ -73,6 +81,7 @@ public sealed partial class DatabaseNodeViewModel(DatabaseInfo info, CatalogServ
         finally
         {
             IsLoading = false;
+            OnPropertyChanged(nameof(CountDescription));
         }
     }
 
@@ -119,11 +128,34 @@ public sealed class CollectionNodeViewModel(CollectionInfo info)
 
     public CollectionKind Kind => Info.Kind;
 
-    public string Glyph => Info.Kind switch
+    /// <summary>Document count for the sidebar row; blank when the server reported none.</summary>
+    public string CountDescription => Info.DocumentCount is { } count ? $"{count:N0}" : "";
+
+    public string SizeDescription => Info.StorageSizeBytes is { } bytes and > 0
+        ? ByteSize.Format(bytes)
+        : "";
+
+    /// <summary>Full detail for the row tooltip, where there is room for it.</summary>
+    public string Tooltip
     {
-        CollectionKind.View => "",       // preview
-        CollectionKind.TimeSeries => "", // chart
-        _ => ""                          // list
+        get
+        {
+            var parts = new List<string> { $"{Database}.{Name}" };
+
+            if (Info.DocumentCount is { } count) parts.Add($"{count:N0} documents");
+            if (Info.StorageSizeBytes is { } bytes and > 0) parts.Add(ByteSize.Format(bytes));
+            if (Info.IndexCount is { } indexes) parts.Add($"{indexes} indexes");
+
+            return string.Join("  ·  ", parts);
+        }
+    }
+
+    /// <summary>The glyph Compass gives each kind of collection.</summary>
+    public string IconGlyph => Info.Kind switch
+    {
+        CollectionKind.View => "Visibility",
+        CollectionKind.TimeSeries => "TimeSeries",
+        _ => "Folder"
     };
 
     public string KindLabel => Info.Kind switch

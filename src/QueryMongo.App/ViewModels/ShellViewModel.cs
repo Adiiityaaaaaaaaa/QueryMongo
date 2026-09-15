@@ -3,273 +3,472 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using QueryMongo.Core.Connections;
 using QueryMongo.Core.Models;
-using QueryMongo.Core.Mongo;
 using QueryMongo.Core.Services;
+using QueryMongo.Core.Shell;
 
 namespace QueryMongo.App.ViewModels;
 
 /// <summary>
-/// Owns the connection, the database tree and the open collection tabs. Everything
-/// the window shows hangs off this one object.
+/// Owns every connection and every open workspace tab.
+///
+/// Several connections can be live at once, and a tab is not necessarily a collection:
+/// the welcome screen, a server's database list, a shell and the performance charts are
+/// all workspaces that sit in the same tab strip.
 /// </summary>
 public sealed partial class ShellViewModel : ObservableObject, IDisposable
 {
     private readonly IConnectionStore _store;
     private readonly QueryHistoryStore _history;
 
-    private MongoSession? _session;
-    private AdminService? _admin;
-    private CatalogService? _catalog;
-
-    /// <summary>All databases, before the sidebar filter is applied.</summary>
-    private readonly List<DatabaseNodeViewModel> _allDatabases = [];
+    /// <summary>Every connection, before the sidebar filter is applied.</summary>
+    private readonly List<ConnectionViewModel> _all = [];
 
     public ShellViewModel(IConnectionStore store, QueryHistoryStore history)
     {
         _store = store;
         _history = history;
-
-        ConnectionString = "mongodb://localhost:27017";
-        ServerDescription = "";
         SidebarFilter = "";
+
+        SavedQueries = new SavedQueriesViewModel(history);
     }
 
-    // ---- connection ------------------------------------------------------
+    /// <summary>Connections currently shown in the sidebar.</summary>
+    public ObservableCollection<ConnectionViewModel> Connections { get; } = [];
+
+    public ObservableCollection<WorkspaceTabViewModel> Tabs { get; } = [];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsDisconnected))]
-    public partial bool IsConnected { get; set; }
+    [NotifyPropertyChangedFor(nameof(HasActiveTab))]
+    public partial WorkspaceTabViewModel? ActiveTab { get; set; }
 
-    [ObservableProperty] public partial bool IsBusy { get; set; }
-    [ObservableProperty] public partial string ConnectionString { get; set; }
-    [ObservableProperty] public partial string? ErrorMessage { get; set; }
-    [ObservableProperty] public partial string ServerDescription { get; set; }
+    public bool HasActiveTab => ActiveTab is not null;
 
-    /// <summary>Host name of the open connection, shown in the sidebar header.</summary>
-    [ObservableProperty] public partial string ConnectionName { get; set; } = "Not connected";
-
-    public bool IsDisconnected => !IsConnected;
-
-    public ObservableCollection<ConnectionProfile> SavedConnections { get; } = [];
-
-    // ---- sidebar ---------------------------------------------------------
-
-    public ObservableCollection<DatabaseNodeViewModel> Databases { get; } = [];
+    public SavedQueriesViewModel SavedQueries { get; }
 
     [ObservableProperty] public partial string SidebarFilter { get; set; }
 
+    [ObservableProperty] public partial string? ErrorMessage { get; set; }
+
+    public bool HasConnections => _all.Count > 0;
+
+    /// <summary>Finds an open connection by id, or null once it has been forgotten.</summary>
+    public ConnectionViewModel? FindConnection(Guid? id) =>
+        id is { } value ? _all.FirstOrDefault(c => c.Id == value) : null;
+
+    public int ConnectionCount => _all.Count;
+
     /// <summary>
-    /// SSH settings from the connect form, applied to the next connection. The form
-    /// owns the fields; the shell only carries them into the profile.
+    /// The count beside the CONNECTIONS heading. Blank rather than "(0)" when there are
+    /// none, so an empty sidebar is not shouting a zero at you.
     /// </summary>
-    public SshOptions? PendingSsh { get; set; }
+    public string ConnectionCountLabel => _all.Count == 0 ? "" : $"({_all.Count})";
 
-    // ---- tabs ------------------------------------------------------------
+    public int ActiveConnectionCount => _all.Count(c => c.IsConnected);
 
-    public ObservableCollection<CollectionTabViewModel> Tabs { get; } = [];
+    // ---- loading ---------------------------------------------------------
 
-    [ObservableProperty] public partial CollectionTabViewModel? ActiveTab { get; set; }
-
-    [ObservableProperty] public partial PerformanceViewModel? Performance { get; set; }
-
-    [ObservableProperty] public partial bool IsPerformanceOpen { get; set; }
-
-    // ---- connecting ------------------------------------------------------
-
-    public async Task LoadSavedConnectionsAsync()
+    /// <summary>Loads saved connections into the sidebar. None are opened automatically.</summary>
+    public async Task LoadConnectionsAsync()
     {
-        SavedConnections.Clear();
+        foreach (var existing in _all) existing.Dispose();
+        _all.Clear();
+
         foreach (var profile in await _store.LoadAsync().ConfigureAwait(true))
-            SavedConnections.Add(profile);
+            _all.Add(Track(profile));
+
+        ApplyFilter();
+        NotifyConnectionCounts();
+
+        // Compass opens on the welcome workspace rather than an empty window.
+        if (Tabs.Count == 0) OpenWelcome();
     }
 
-    [RelayCommand]
-    private async Task ConnectAsync()
+    private ConnectionViewModel Track(ConnectionProfile profile)
     {
-        if (string.IsNullOrWhiteSpace(ConnectionString)) return;
+        var connection = new ConnectionViewModel(profile, _store);
 
-        IsBusy = true;
-        ErrorMessage = null;
+        // Closing a connection must not leave its tabs pointing at a dead session.
+        connection.Disconnected += (_, _) => CloseTabsFor(connection);
 
-        try
-        {
-            var profile = ConnectionProfile.Create(name: "", ConnectionString) with { Ssh = PendingSsh };
-            var session = await MongoSession.ConnectAsync(profile).ConfigureAwait(true);
-
-            _session?.Dispose();
-            _session = session;
-            _admin = new AdminService(session);
-            _catalog = new CatalogService(session);
-
-            Performance = new PerformanceViewModel(_admin);
-
-            ServerDescription = $"MongoDB {session.ServerVersion} · {session.Topology}"
-                                + (session.IsTunnelled ? " · via SSH" : "");
-            ConnectionName = session.Profile.Name;
-            IsConnected = true;
-
-            await _store.SaveAsync(session.Profile).ConfigureAwait(true);
-            await LoadSavedConnectionsAsync().ConfigureAwait(true);
-            await RefreshDatabasesAsync().ConfigureAwait(true);
-        }
-        catch (Exception e)
-        {
-            // The driver's own message already distinguishes auth from network from TLS.
-            ErrorMessage = e.Message;
-            IsConnected = false;
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        return connection;
     }
 
-    [RelayCommand]
-    private void Disconnect()
+    private void NotifyConnectionCounts()
     {
-        Performance?.Dispose();
-        Performance = null;
-
-        _session?.Dispose();
-        _session = null;
-        _admin = null;
-        _catalog = null;
-
-        Tabs.Clear();
-        ActiveTab = null;
-        _allDatabases.Clear();
-        Databases.Clear();
-        ServerDescription = "";
-        ConnectionName = "Not connected";
-        IsConnected = false;
+        OnPropertyChanged(nameof(HasConnections));
+        OnPropertyChanged(nameof(ConnectionCount));
+        OnPropertyChanged(nameof(ConnectionCountLabel));
+        OnPropertyChanged(nameof(ActiveConnectionCount));
     }
-
-    [RelayCommand]
-    public async Task RefreshDatabasesAsync()
-    {
-        if (_catalog is null) return;
-
-        IsBusy = true;
-        try
-        {
-            var databases = await _catalog.ListDatabasesAsync().ConfigureAwait(true);
-
-            _allDatabases.Clear();
-            foreach (var db in databases)
-                _allDatabases.Add(new DatabaseNodeViewModel(db, _catalog));
-
-            ApplySidebarFilter();
-        }
-        catch (Exception e)
-        {
-            ErrorMessage = e.Message;
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    partial void OnSidebarFilterChanged(string value) => ApplySidebarFilter();
 
     /// <summary>
-    /// Filters the sidebar by database or collection name. A database stays visible
-    /// when one of its already-loaded collections matches, and auto-expands to show it.
+    /// Adds a connection from the form and opens it. An existing profile with the same
+    /// URI is reused rather than duplicated.
     /// </summary>
-    private void ApplySidebarFilter()
+    public async Task<string?> AddConnectionAsync(
+        string uri, string? name, SshOptions? ssh, string? colorCode = null)
     {
-        Databases.Clear();
+        if (string.IsNullOrWhiteSpace(uri)) return "A connection needs a URI.";
 
+        var existing = _all.FirstOrDefault(c =>
+            string.Equals(c.Profile.ConnectionString, uri.Trim(), StringComparison.Ordinal));
+
+        var connection = existing;
+
+        if (connection is null)
+        {
+            var profile = ConnectionProfile.Create(name ?? "", uri) with
+            {
+                Ssh = ssh,
+                ColorCode = colorCode
+            };
+
+            await _store.SaveAsync(profile).ConfigureAwait(true);
+
+            connection = Track(profile);
+            _all.Add(connection);
+
+            ApplyFilter();
+            NotifyConnectionCounts();
+        }
+
+        await connection.ConnectAsync().ConfigureAwait(true);
+        NotifyConnectionCounts();
+
+        if (connection.State == ConnectionState.Failed) return connection.ErrorMessage;
+
+        // Connecting lands on the server's database list, as it does in Compass.
+        OpenDatabases(connection);
+        return null;
+    }
+
+    [RelayCommand]
+    private async Task ConnectAsync(ConnectionViewModel connection)
+    {
+        await connection.ConnectAsync().ConfigureAwait(true);
+        NotifyConnectionCounts();
+
+        if (connection.IsConnected) OpenDatabases(connection);
+    }
+
+    [RelayCommand]
+    private void Disconnect(ConnectionViewModel connection)
+    {
+        connection.Disconnect();
+        NotifyConnectionCounts();
+    }
+
+    [RelayCommand]
+    private async Task ForgetConnectionAsync(ConnectionViewModel connection)
+    {
+        connection.Disconnect();
+
+        await _store.DeleteAsync(connection.Id).ConfigureAwait(true);
+
+        _all.Remove(connection);
+        connection.Dispose();
+
+        ApplyFilter();
+        NotifyConnectionCounts();
+    }
+
+    [RelayCommand]
+    private async Task ToggleFavoriteAsync(ConnectionViewModel connection)
+    {
+        await UpdateProfileAsync(
+            connection, connection.Profile with { IsFavorite = !connection.Profile.IsFavorite })
+            .ConfigureAwait(true);
+    }
+
+    /// <summary>Renames a saved connection so a deployment is recognisable in the list.</summary>
+    public async Task RenameConnectionAsync(ConnectionViewModel connection, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        await UpdateProfileAsync(connection, connection.Profile with { Name = name.Trim() })
+            .ConfigureAwait(true);
+    }
+
+    /// <summary>Tags a connection with a colour, which tints its sidebar rows and tabs.</summary>
+    public async Task SetConnectionColorAsync(ConnectionViewModel connection, string? colorCode)
+    {
+        await UpdateProfileAsync(connection, connection.Profile with { ColorCode = colorCode })
+            .ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Saves an edited profile in place. The connection object is kept, so its open
+    /// session, expanded databases and tabs all survive an edit.
+    /// </summary>
+    private async Task UpdateProfileAsync(ConnectionViewModel connection, ConnectionProfile updated)
+    {
+        await _store.SaveAsync(updated).ConfigureAwait(true);
+
+        connection.ApplyProfile(updated);
+        ApplyFilter();
+    }
+
+    // ---- sidebar filter --------------------------------------------------
+
+    partial void OnSidebarFilterChanged(string value) => ApplyFilter();
+
+    private void ApplyFilter()
+    {
         var term = SidebarFilter.Trim();
 
-        foreach (var db in _allDatabases)
-        {
-            if (term.Length == 0)
-            {
-                db.ClearCollectionFilter();
-                Databases.Add(db);
-                continue;
-            }
+        Connections.Clear();
 
-            var nameMatches = db.Name.Contains(term, StringComparison.OrdinalIgnoreCase);
-            var childMatches = db.ApplyCollectionFilter(term);
-
-            if (nameMatches || childMatches)
-            {
-                if (childMatches) db.IsExpanded = true;
-                Databases.Add(db);
-            }
-        }
+        // Favourites first, then alphabetically, which is the order Compass lists them in.
+        foreach (var connection in _all
+                     .OrderByDescending(c => c.Profile.IsFavorite)
+                     .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
+            if (connection.ApplyFilter(term))
+                Connections.Add(connection);
     }
 
-    // ---- tabs ------------------------------------------------------------
+    [RelayCommand]
+    private void CollapseAllConnections()
+    {
+        foreach (var connection in _all) connection.Collapse();
+    }
+
+    // ---- opening workspaces ----------------------------------------------
 
     /// <summary>
-    /// Opens a collection. An already-open collection is focused rather than opened
-    /// twice, which is how Compass behaves.
+    /// Puts a workspace on screen, following Compass's rules: an identical workspace that
+    /// is already open is selected rather than duplicated; otherwise the active tab is
+    /// replaced, unless it belongs to a different connection or has edits worth keeping,
+    /// in which case a new tab opens next to it.
     /// </summary>
-    public async Task OpenCollectionAsync(string database, string collection, CollectionKind kind)
+    private void Open(WorkspaceTabViewModel workspace, bool inNewTab = false)
     {
-        if (_session is null) return;
+        workspace.Host = this;
 
-        var existing = Tabs.FirstOrDefault(t => t.Database == database && t.Collection == collection);
-        if (existing is not null)
+        if (!inNewTab)
         {
-            ActiveTab = existing;
-            IsPerformanceOpen = false;
+            // The active tab gets first refusal, so re-opening what is already on screen
+            // changes nothing at all.
+            var candidates = ActiveTab is { } active
+                ? new[] { active }.Concat(Tabs)
+                : Tabs;
+
+            if (candidates.FirstOrDefault(t => IsSameWorkspace(t, workspace)) is { } match)
+            {
+                workspace.Close();
+                Activate(match);
+                return;
+            }
+        }
+
+        var replaceable =
+            !inNewTab &&
+            ActiveTab is { } current &&
+            current.CanBeReplaced &&
+            // Tabs are never replaced across connections: losing another server's tab
+            // because you clicked something on this one would be surprising.
+            !(current.ConnectionId is not null
+              && workspace.ConnectionId is not null
+              && current.ConnectionId != workspace.ConnectionId);
+
+        if (replaceable && ActiveTab is { } toReplace)
+        {
+            var at = Tabs.IndexOf(toReplace);
+
+            Tabs[at] = workspace;
+            toReplace.Close();
+        }
+        else
+        {
+            // A new tab opens immediately after the active one rather than at the end.
+            var at = ActiveTab is { } anchor ? Tabs.IndexOf(anchor) + 1 : Tabs.Count;
+            Tabs.Insert(at, workspace);
+        }
+
+        Activate(workspace);
+    }
+
+    private void Activate(WorkspaceTabViewModel workspace)
+    {
+        // The strip draws the selected tab from the tab's own flag, so only one tab may
+        // carry it at a time.
+        foreach (var tab in Tabs) tab.IsSelected = ReferenceEquals(tab, workspace);
+
+        ActiveTab = workspace;
+        _ = workspace.EnsureActivatedAsync();
+    }
+
+    /// <summary>
+    /// Whether two workspaces address the same thing. Identity is the connection plus
+    /// whatever the workspace is scoped to, not the tab object.
+    /// </summary>
+    private static bool IsSameWorkspace(WorkspaceTabViewModel a, WorkspaceTabViewModel b)
+    {
+        if (a.Kind != b.Kind || a.ConnectionId != b.ConnectionId) return false;
+
+        return (a, b) switch
+        {
+            (CollectionsWorkspaceViewModel x, CollectionsWorkspaceViewModel y) =>
+                x.Database == y.Database,
+            (CollectionTabViewModel x, CollectionTabViewModel y) =>
+                x.Database == y.Database && x.Collection == y.Collection,
+            _ => true
+        };
+    }
+
+    [RelayCommand]
+    public void OpenWelcome() => Open(new WelcomeWorkspaceViewModel());
+
+    [RelayCommand]
+    public void OpenMyQueries() => Open(new MyQueriesWorkspaceViewModel(SavedQueries));
+
+    [RelayCommand]
+    public void OpenDatabases(ConnectionViewModel connection)
+    {
+        if (connection.Session is not { } session) return;
+
+        Open(new DatabasesWorkspaceViewModel(
+            connection.Id, connection.Name, connection.ColorCode, new CatalogService(session)));
+    }
+
+    public void OpenCollections(ConnectionViewModel connection, string database, bool inNewTab = false)
+    {
+        if (connection.Session is not { } session) return;
+
+        Open(
+            new CollectionsWorkspaceViewModel(
+                connection.Id, connection.Name, connection.ColorCode, database,
+                new CatalogService(session)),
+            inNewTab);
+    }
+
+    public void OpenCollection(
+        ConnectionViewModel connection,
+        string database,
+        string collection,
+        CollectionKind kind,
+        bool inNewTab = false)
+    {
+        if (connection.Session is not { } session) return;
+
+        Open(
+            new CollectionTabViewModel(
+                connection.Id, connection.Name, connection.ColorCode,
+                database, collection, kind, session, _history),
+            inNewTab);
+    }
+
+    [RelayCommand]
+    public void OpenShell(ConnectionViewModel connection)
+    {
+        if (connection.Session is not { } session) return;
+
+        Open(new ShellWorkspaceViewModel(
+            connection.Id,
+            connection.Name,
+            connection.ColorCode,
+            new MongoShellViewModel(new ShellService(session))));
+    }
+
+    [RelayCommand]
+    public void OpenPerformance(ConnectionViewModel connection)
+    {
+        if (connection.Admin is not { } admin) return;
+
+        Open(new PerformanceWorkspaceViewModel(
+            connection.Id, connection.Name, connection.ColorCode, new PerformanceViewModel(admin)));
+    }
+
+    // ---- tab strip -------------------------------------------------------
+
+    [RelayCommand]
+    public void SelectTab(WorkspaceTabViewModel tab)
+    {
+        if (!Tabs.Contains(tab)) return;
+        Activate(tab);
+    }
+
+    [RelayCommand]
+    private void CloseTab(WorkspaceTabViewModel tab)
+    {
+        var index = Tabs.IndexOf(tab);
+        if (index < 0) return;
+
+        Tabs.RemoveAt(index);
+        tab.Close();
+
+        if (!ReferenceEquals(ActiveTab, tab)) return;
+
+        if (Tabs.Count == 0)
+        {
+            ActiveTab = null;
             return;
         }
 
-        var tab = new CollectionTabViewModel(database, collection, kind, _session, _history);
-        Tabs.Add(tab);
-        ActiveTab = tab;
-        IsPerformanceOpen = false;
-
-        await tab.InitializeAsync().ConfigureAwait(true);
+        Activate(Tabs[Math.Min(index, Tabs.Count - 1)]);
     }
 
     [RelayCommand]
-    private void CloseTab(CollectionTabViewModel tab)
+    private void CloseOtherTabs(WorkspaceTabViewModel tab)
     {
-        var index = Tabs.IndexOf(tab);
-        Tabs.Remove(tab);
+        foreach (var other in Tabs.Where(t => !ReferenceEquals(t, tab)).ToList())
+        {
+            Tabs.Remove(other);
+            other.Close();
+        }
 
-        if (ReferenceEquals(ActiveTab, tab))
-            ActiveTab = Tabs.Count == 0 ? null : Tabs[Math.Min(index, Tabs.Count - 1)];
+        Activate(tab);
     }
 
-    [RelayCommand]
-    private void CloseAllTabs()
+    /// <summary>Moves a tab in the strip, for drag-to-reorder.</summary>
+    public void MoveTab(int from, int to)
     {
-        Tabs.Clear();
-        ActiveTab = null;
+        if (from == to) return;
+        if (from < 0 || from >= Tabs.Count) return;
+        if (to < 0 || to >= Tabs.Count) return;
+
+        Tabs.Move(from, to);
     }
 
     [RelayCommand]
-    private void ShowPerformance()
+    private void SelectNextTab() => Step(1);
+
+    [RelayCommand]
+    private void SelectPreviousTab() => Step(-1);
+
+    private void Step(int delta)
     {
-        IsPerformanceOpen = true;
-        Performance?.SampleCommand.Execute(null);
+        if (Tabs.Count == 0 || ActiveTab is null) return;
+
+        var index = Tabs.IndexOf(ActiveTab);
+        if (index < 0) return;
+
+        // Wraps, so ctrl-tab keeps cycling rather than stopping at the last tab.
+        var next = (index + delta + Tabs.Count) % Tabs.Count;
+        Activate(Tabs[next]);
     }
 
-    [RelayCommand]
-    private void ShowCollections() => IsPerformanceOpen = false;
+    private void CloseTabsFor(ConnectionViewModel connection)
+    {
+        foreach (var tab in Tabs.Where(t => t.ConnectionId == connection.Id).ToList())
+            CloseTab(tab);
+
+        NotifyConnectionCounts();
+    }
 
     // ---- database and collection management ------------------------------
 
-    /// <summary>Creates a database by creating its first collection. Returns an error, or null.</summary>
-    public async Task<string?> CreateDatabaseAsync(
-        string database, string collection, NewCollectionOptions options)
+    public static async Task<string?> CreateDatabaseAsync(
+        ConnectionViewModel connection, string database, string collection, NewCollectionOptions options)
     {
-        if (_admin is null) return "Not connected.";
+        if (connection.Admin is not { } admin) return "That connection is not open.";
         if (string.IsNullOrWhiteSpace(database)) return "A database needs a name.";
         if (string.IsNullOrWhiteSpace(collection)) return "A database needs at least one collection.";
 
         try
         {
-            await _admin.CreateDatabaseAsync(database.Trim(), collection.Trim(), options)
+            await admin.CreateDatabaseAsync(database.Trim(), collection.Trim(), options)
                 .ConfigureAwait(true);
-            await RefreshDatabasesAsync().ConfigureAwait(true);
+            await connection.RefreshDatabasesAsync().ConfigureAwait(true);
             return null;
         }
         catch (Exception e)
@@ -278,16 +477,16 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
     }
 
-    public async Task<string?> CreateCollectionAsync(
-        string database, string collection, NewCollectionOptions options)
+    public static async Task<string?> CreateCollectionAsync(
+        ConnectionViewModel connection, string database, string collection, NewCollectionOptions options)
     {
-        if (_admin is null) return "Not connected.";
+        if (connection.Admin is not { } admin) return "That connection is not open.";
         if (string.IsNullOrWhiteSpace(collection)) return "A collection needs a name.";
 
         try
         {
-            await _admin.CreateCollectionAsync(database, collection.Trim(), options).ConfigureAwait(true);
-            await RefreshNodeAsync(database).ConfigureAwait(true);
+            await admin.CreateCollectionAsync(database, collection.Trim(), options).ConfigureAwait(true);
+            await connection.RefreshDatabaseAsync(database).ConfigureAwait(true);
             return null;
         }
         catch (Exception e)
@@ -296,18 +495,17 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
     }
 
-    public async Task<string?> DropDatabaseAsync(string database)
+    public async Task<string?> DropDatabaseAsync(ConnectionViewModel connection, string database)
     {
-        if (_admin is null) return "Not connected.";
+        if (connection.Admin is not { } admin) return "That connection is not open.";
 
         try
         {
-            await _admin.DropDatabaseAsync(database).ConfigureAwait(true);
+            await admin.DropDatabaseAsync(database).ConfigureAwait(true);
 
-            foreach (var tab in Tabs.Where(t => t.Database == database).ToList())
-                CloseTab(tab);
+            CloseTabsWhere(t => t.ConnectionId == connection.Id && DatabaseOf(t) == database);
 
-            await RefreshDatabasesAsync().ConfigureAwait(true);
+            await connection.RefreshDatabasesAsync().ConfigureAwait(true);
             return null;
         }
         catch (Exception e)
@@ -316,18 +514,21 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
     }
 
-    public async Task<string?> DropCollectionAsync(string database, string collection)
+    public async Task<string?> DropCollectionAsync(
+        ConnectionViewModel connection, string database, string collection)
     {
-        if (_admin is null) return "Not connected.";
+        if (connection.Admin is not { } admin) return "That connection is not open.";
 
         try
         {
-            await _admin.DropCollectionAsync(database, collection).ConfigureAwait(true);
+            await admin.DropCollectionAsync(database, collection).ConfigureAwait(true);
 
-            if (Tabs.FirstOrDefault(t => t.Database == database && t.Collection == collection) is { } tab)
-                CloseTab(tab);
+            CloseTabsWhere(t => t is CollectionTabViewModel tab
+                                && tab.ConnectionId == connection.Id
+                                && tab.Database == database
+                                && tab.Collection == collection);
 
-            await RefreshNodeAsync(database).ConfigureAwait(true);
+            await connection.RefreshDatabaseAsync(database).ConfigureAwait(true);
             return null;
         }
         catch (Exception e)
@@ -336,19 +537,22 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
     }
 
-    public async Task<string?> RenameCollectionAsync(string database, string from, string to)
+    public async Task<string?> RenameCollectionAsync(
+        ConnectionViewModel connection, string database, string from, string to)
     {
-        if (_admin is null) return "Not connected.";
+        if (connection.Admin is not { } admin) return "That connection is not open.";
         if (string.IsNullOrWhiteSpace(to)) return "The new name cannot be empty.";
 
         try
         {
-            await _admin.RenameCollectionAsync(database, from, to.Trim()).ConfigureAwait(true);
+            await admin.RenameCollectionAsync(database, from, to.Trim()).ConfigureAwait(true);
 
-            if (Tabs.FirstOrDefault(t => t.Database == database && t.Collection == from) is { } tab)
-                CloseTab(tab);
+            CloseTabsWhere(t => t is CollectionTabViewModel tab
+                                && tab.ConnectionId == connection.Id
+                                && tab.Database == database
+                                && tab.Collection == from);
 
-            await RefreshNodeAsync(database).ConfigureAwait(true);
+            await connection.RefreshDatabaseAsync(database).ConfigureAwait(true);
             return null;
         }
         catch (Exception e)
@@ -357,19 +561,21 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Empties a collection, keeping its indexes and validation rules.</summary>
-    public async Task<string?> ClearCollectionAsync(string database, string collection)
+    public async Task<string?> ClearCollectionAsync(
+        ConnectionViewModel connection, string database, string collection)
     {
-        if (_admin is null) return "Not connected.";
+        if (connection.Admin is not { } admin) return "That connection is not open.";
 
         try
         {
-            var deleted = await _admin.DeleteAllDocumentsAsync(database, collection).ConfigureAwait(true);
+            await admin.DeleteAllDocumentsAsync(database, collection).ConfigureAwait(true);
 
-            if (Tabs.FirstOrDefault(t => t.Database == database && t.Collection == collection) is { } tab)
+            if (Tabs.OfType<CollectionTabViewModel>().FirstOrDefault(t =>
+                    t.ConnectionId == connection.Id
+                    && t.Database == database
+                    && t.Collection == collection) is { } tab)
                 await tab.Documents.RunQueryAsync().ConfigureAwait(true);
 
-            ErrorMessage = null;
             return null;
         }
         catch (Exception e)
@@ -378,41 +584,25 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task RefreshNodeAsync(string database)
+    /// <summary>The database a workspace is scoped to, or null when it is not scoped to one.</summary>
+    private static string? DatabaseOf(WorkspaceTabViewModel tab) => tab switch
     {
-        var node = _allDatabases.FirstOrDefault(d => d.Name == database);
-        if (node is null)
-        {
-            await RefreshDatabasesAsync().ConfigureAwait(true);
-            return;
-        }
+        CollectionsWorkspaceViewModel collections => collections.Database,
+        CollectionTabViewModel collection => collection.Database,
+        _ => null
+    };
 
-        await node.ReloadAsync().ConfigureAwait(true);
-        ApplySidebarFilter();
-    }
-
-    // ---- saved connections ----------------------------------------------
-
-    public void UseSavedConnection(ConnectionProfile profile) => ConnectionString = profile.ConnectionString;
-
-    [RelayCommand]
-    private async Task DeleteSavedConnectionAsync(ConnectionProfile profile)
+    private void CloseTabsWhere(Func<WorkspaceTabViewModel, bool> predicate)
     {
-        await _store.DeleteAsync(profile.Id).ConfigureAwait(true);
-        await LoadSavedConnectionsAsync().ConfigureAwait(true);
-    }
-
-    [RelayCommand]
-    private async Task ToggleFavoriteAsync(ConnectionProfile profile)
-    {
-        await _store.SaveAsync(profile with { IsFavorite = !profile.IsFavorite }).ConfigureAwait(true);
-        await LoadSavedConnectionsAsync().ConfigureAwait(true);
+        foreach (var tab in Tabs.Where(predicate).ToList()) CloseTab(tab);
     }
 
     public void Dispose()
     {
-        Performance?.Dispose();
-        _session?.Dispose();
-        _session = null;
+        foreach (var tab in Tabs) tab.Close();
+        Tabs.Clear();
+
+        foreach (var connection in _all) connection.Dispose();
+        _all.Clear();
     }
 }

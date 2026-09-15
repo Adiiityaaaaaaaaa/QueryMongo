@@ -1,0 +1,9 @@
+<UserControl
+    x:Class="QueryMongo.App.Views.Workspaces.ShellWorkspaceView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:panes="using:QueryMongo.App.Views.Panes">
+
+    <!-- The shell pane, opened against a whole connection rather than one collection. -->
+    <panes:ShellPane Model="{x:Bind Model, Mode=OneWay}" />
+</UserControl>

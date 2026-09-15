@@ -16,6 +16,18 @@ public sealed record QuerySpec
     public int Skip { get; init; }
     public int Limit { get; init; } = 50;
 
+    /// <summary>
+    /// An index to force, either as a key document or as an index name in quotes. Compass
+    /// exposes this as "Index Hint" in the expanded query options.
+    /// </summary>
+    public string Hint { get; init; } = "";
+
+    /// <summary>
+    /// How long the server may spend on the query before giving up. Zero leaves the
+    /// server's own default in place rather than imposing one.
+    /// </summary>
+    public int MaxTimeMs { get; init; }
+
     public static QuerySpec Default => new();
 }
 

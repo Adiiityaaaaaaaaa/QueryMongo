@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using QueryMongo.App.Controls;
 using QueryMongo.App.Dialogs;
 using QueryMongo.App.ViewModels;
 
@@ -7,16 +8,65 @@ namespace QueryMongo.App.Views;
 
 public sealed partial class CollectionTabView : UserControl
 {
+    /// <summary>The sub-tabs, in the order they appear.</summary>
+    private static readonly string[] PaneNames =
+    [
+        "Documents",
+        "Aggregations",
+        "Schema",
+        "Explain Plan",
+        "Indexes",
+        "Search Indexes",
+        "Validation",
+        "Map",
+        "Shell"
+    ];
+
+    private readonly List<Button> _paneButtons = [];
+
     public CollectionTabView()
     {
         InitializeComponent();
+        BuildPaneBar();
+    }
 
-        // SelectorBar starts with nothing selected, which would show no pane at all.
-        Loaded += (_, _) => PaneBar.SelectedItem ??= PaneBar.Items[0];
+    private void BuildPaneBar()
+    {
+        for (var i = 0; i < PaneNames.Length; i++)
+        {
+            var index = i;
+            var button = new Button { Content = PaneNames[i], Tag = index };
+
+            button.Click += async (_, _) => await SelectPaneAsync(index);
+
+            _paneButtons.Add(button);
+            PaneBar.Children.Add(button);
+        }
+
+        SelectPane(0);
+    }
+
+    private async Task SelectPaneAsync(int index)
+    {
+        SelectPane(index);
+
+        if (Tab is not null) await Tab.OnPaneSelectedAsync(index);
+    }
+
+    /// <summary>
+    /// Only the selected sub-tab carries the green underline; the rest are plain, which
+    /// is how Compass draws its tab row.
+    /// </summary>
+    private void SelectPane(int index)
+    {
+        for (var i = 0; i < _paneButtons.Count; i++)
+            _paneButtons[i].Style = (Style)Application.Current.Resources[
+                i == index ? "SubTabSelectedStyle" : "SubTabStyle"];
     }
 
     public static readonly DependencyProperty TabProperty = DependencyProperty.Register(
-        nameof(Tab), typeof(CollectionTabViewModel), typeof(CollectionTabView), new PropertyMetadata(null));
+        nameof(Tab), typeof(CollectionTabViewModel), typeof(CollectionTabView),
+        new PropertyMetadata(null, (d, e) => ((CollectionTabView)d).OnTabChanged(e)));
 
     public CollectionTabViewModel Tab
     {
@@ -24,19 +74,25 @@ public sealed partial class CollectionTabView : UserControl
         set => SetValue(TabProperty, value);
     }
 
-    private async void OnPaneChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    private void OnTabChanged(DependencyPropertyChangedEventArgs e)
     {
-        if (Tab is null || sender.SelectedItem is null) return;
-
-        var index = sender.Items.IndexOf(sender.SelectedItem);
-        if (index < 0) return;
-
-        await Tab.OnPaneSelectedAsync(index);
+        Trail.Items = (e.NewValue as CollectionTabViewModel)?.Trail;
+        Bindings.Update();
     }
+
+    // ---- requests from the documents pane --------------------------------
+
+    /// <summary>Compass shows the plan in a modal; here it is the tab's Explain Plan pane.</summary>
+    private async void OnExplainRequested(object? sender, EventArgs e) =>
+        await SelectPaneAsync(3);
+
+    private void OnExportRequested(object? sender, bool fullCollection) => StartExport();
 
     // ---- import / export -------------------------------------------------
 
-    private async void OnExport(object sender, RoutedEventArgs e)
+    private void OnExport(object sender, RoutedEventArgs e) => StartExport();
+
+    private async void StartExport()
     {
         var dialog = new TransferDialog { XamlRoot = XamlRoot, IsExport = true };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
@@ -67,7 +123,12 @@ public sealed partial class CollectionTabView : UserControl
         }
     }
 
-    private async void OnImport(object sender, RoutedEventArgs e)
+    /// <summary>The header's Import button and the documents pane's menu land here alike.</summary>
+    private void OnImport(object sender, RoutedEventArgs e) => StartImport();
+
+    private void OnImport(object? sender, EventArgs e) => StartImport();
+
+    private async void StartImport()
     {
         var dialog = new TransferDialog { XamlRoot = XamlRoot, IsExport = false };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;

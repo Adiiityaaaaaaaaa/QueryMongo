@@ -18,7 +18,7 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1440, 900));
 
-        _ = Shell.LoadSavedConnectionsAsync();
+        _ = Shell.LoadConnectionsAsync();
     }
 
     public ShellViewModel Shell { get; }

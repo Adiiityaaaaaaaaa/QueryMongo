@@ -3,373 +3,356 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:c="using:QueryMongo.App.Controls"
-    xmlns:vm="using:QueryMongo.App.ViewModels"
-    xmlns:svc="using:QueryMongo.Core.Services"
-    xmlns:local="using:QueryMongo.App.Views">
+    xmlns:vm="using:QueryMongo.App.ViewModels">
 
-    <Grid>
+    <!--
+        The window is laid out the way Compass lays it out: a resizable sidebar on the
+        left, and to its right a workspace column whose tab strip sits above the active
+        workspace's content. The strip belongs to the workspace column, not to the
+        window, so it never runs across the sidebar.
+    -->
+    <Grid Background="{ThemeResource SurfaceBrush}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="290" MinWidth="240" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- ============================ Sidebar ============================ -->
-        <Grid Grid.Column="0" Background="{ThemeResource SidebarBackgroundBrush}">
+        <!-- ======================= Sidebar ======================= -->
+        <Grid x:Name="Sidebar"
+              Grid.Column="0"
+              Width="300"
+              MinWidth="210"
+              MaxWidth="600"
+              Background="{ThemeResource SidebarBackgroundBrush}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Connection header -->
-            <Grid Grid.Row="0" Padding="14,12,10,10" ColumnSpacing="10">
+            <!-- Title row: the app name, and settings on the right -->
+            <Grid Grid.Row="0" Padding="16,16,16,0" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Width="30" Height="30" CornerRadius="15"
-                        Background="{ThemeResource AccentGreenBrush}">
-                    <FontIcon Glyph="&#xE81C;" FontSize="14" Foreground="White" />
-                </Border>
+                <TextBlock Grid.Column="0" Text="QueryMongo"
+                           FontSize="18" FontWeight="SemiBold" LineHeight="32"
+                           Foreground="{ThemeResource SidebarTextBrush}" />
 
-                <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind Shell.ConnectionName, Mode=OneWay}" FontSize="13"
-                               FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                <Button Grid.Column="1" Style="{StaticResource SidebarIconButtonStyle}"
+                        AutomationProperties.Name="Settings"
+                        ToolTipService.ToolTip="Settings"
+                        Click="OnOpenSettings">
+                    <c:LeafyIcon Glyph="Settings" Size="14" />
+                </Button>
+            </Grid>
+
+            <!-- Global navigation, above the connection list -->
+            <StackPanel Grid.Row="1" Margin="0,8,0,0">
+                <Button Style="{StaticResource SidebarNavItemStyle}" Click="OnOpenMyQueries">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <c:LeafyIcon Glyph="CurlyBraces" Size="14" />
+                        <TextBlock Text="My Queries" FontSize="13" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <Border Grid.Row="2" Height="1" Margin="0,8"
+                    Background="{ThemeResource HairlineBrush}" />
+
+            <!-- Connection list header -->
+            <Grid Grid.Row="3" Padding="16,0" ColumnSpacing="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="CONNECTIONS" FontSize="12" LineHeight="32"
                                Foreground="{ThemeResource SidebarTextBrush}" />
-                    <TextBlock Text="{x:Bind Shell.ServerDescription, Mode=OneWay}" FontSize="11"
-                               TextTrimming="CharacterEllipsis"
+                    <TextBlock Text="{x:Bind Shell.ConnectionCountLabel, Mode=OneWay}"
+                               FontSize="12" LineHeight="32"
                                Foreground="{ThemeResource SidebarMutedBrush}" />
                 </StackPanel>
-            </Grid>
 
-            <!-- Search -->
-            <AutoSuggestBox Grid.Row="1" Margin="14,0,14,10" QueryIcon="Find"
-                            PlaceholderText="Search databases and collections"
-                            Text="{x:Bind Shell.SidebarFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-            <!-- Section header -->
-            <Grid Grid.Row="2" Padding="16,0,10,6" ColumnSpacing="4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Column="0" Text="DATABASES" VerticalAlignment="Center" FontSize="11"
-                           FontWeight="SemiBold" CharacterSpacing="40"
-                           Foreground="{ThemeResource SidebarMutedBrush}" />
-
-                <Button Grid.Column="1" Style="{StaticResource SidebarButtonStyle}" Padding="6,3"
-                        Click="OnCreateDatabase" ToolTipService.ToolTip="Create database">
-                    <FontIcon Glyph="&#xE710;" FontSize="12" />
+                <Button Grid.Column="1" Style="{StaticResource SidebarIconButtonStyle}"
+                        AutomationProperties.Name="Collapse all connections"
+                        ToolTipService.ToolTip="Collapse all connections"
+                        Command="{x:Bind Shell.CollapseAllConnectionsCommand}">
+                    <c:LeafyIcon Glyph="CollapseVertical" Size="14" />
                 </Button>
-                <Button Grid.Column="2" Style="{StaticResource SidebarButtonStyle}" Padding="6,3"
-                        Command="{x:Bind Shell.RefreshDatabasesCommand}" ToolTipService.ToolTip="Refresh">
-                    <FontIcon Glyph="&#xE72C;" FontSize="12" />
+
+                <Button Grid.Column="2" Style="{StaticResource SidebarIconButtonStyle}"
+                        AutomationProperties.Name="Add new connection"
+                        ToolTipService.ToolTip="Add new connection"
+                        Click="OnNewConnection">
+                    <c:LeafyIcon Glyph="Plus" Size="14" />
                 </Button>
             </Grid>
+
+            <!-- Filter -->
+            <TextBox Grid.Row="4" Margin="16,0,16,8"
+                     PlaceholderText="Search"
+                     FontSize="13"
+                     Text="{x:Bind Shell.SidebarFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <!-- Tree -->
-            <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Padding="8,0,8,8">
-                <ItemsControl ItemsSource="{x:Bind Shell.Databases}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:DatabaseNodeViewModel">
-                            <StackPanel>
-                                <Button Style="{StaticResource SidebarButtonStyle}" Tag="{x:Bind}"
-                                        Click="OnToggleDatabase">
-                                    <Button.ContextFlyout>
-                                        <MenuFlyout>
-                                            <MenuFlyoutItem Text="Create collection" Tag="{x:Bind}"
-                                                            Click="OnCreateCollection">
-                                                <MenuFlyoutItem.Icon>
-                                                    <FontIcon Glyph="&#xE710;" />
-                                                </MenuFlyoutItem.Icon>
-                                            </MenuFlyoutItem>
-                                            <MenuFlyoutSeparator />
-                                            <MenuFlyoutItem Text="Drop database" Tag="{x:Bind}"
-                                                            Click="OnDropDatabase">
-                                                <MenuFlyoutItem.Icon>
-                                                    <FontIcon Glyph="&#xE74D;" />
-                                                </MenuFlyoutItem.Icon>
-                                            </MenuFlyoutItem>
-                                        </MenuFlyout>
-                                    </Button.ContextFlyout>
+            <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto" Padding="0,0,0,16">
+                <StackPanel>
 
-                                    <Grid ColumnSpacing="7">
+                    <!-- Nothing saved yet -->
+                    <StackPanel Padding="16,8" Spacing="8"
+                                Visibility="{x:Bind c:Converters.Hidden(Shell.HasConnections), Mode=OneWay}">
+                        <TextBlock Text="You have not connected to a deployment yet."
+                                   FontSize="13" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource SidebarMutedBrush}" />
+                        <Button Style="{StaticResource PrimaryButtonStyle}"
+                                HorizontalAlignment="Stretch"
+                                Content="Add new connection"
+                                Click="OnNewConnection" />
+                    </StackPanel>
+
+                    <ItemsControl ItemsSource="{x:Bind Shell.Connections}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ConnectionViewModel">
+                                <StackPanel>
+
+                                    <!-- Connection row -->
+                                    <Grid Height="28"
+                                          Background="{x:Bind c:Converters.ConnectionColor(ColorCode), Mode=OneWay}"
+                                          Tag="{x:Bind}"
+                                          PointerEntered="OnRowPointerEntered"
+                                          PointerExited="OnRowPointerExited"
+                                          RightTapped="OnConnectionActions">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <FontIcon Grid.Column="0" FontSize="9"
-                                                  Glyph="{x:Bind ChevronGlyph, Mode=OneWay}"
-                                                  Foreground="{ThemeResource SidebarMutedBrush}" />
-                                        <FontIcon Grid.Column="1" Glyph="&#xE81C;" FontSize="13" />
-                                        <TextBlock Grid.Column="2" Text="{x:Bind Name}"
-                                                   VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Grid.Column="3" Text="{x:Bind SizeDescription}"
-                                                   FontSize="10" VerticalAlignment="Center"
-                                                   Foreground="{ThemeResource SidebarMutedBrush}" />
+                                        <!-- Hover fill, drawn under the content -->
+                                        <Border x:Name="RowFill" Grid.ColumnSpan="3"
+                                                Background="{ThemeResource SidebarItemHoverBrush}"
+                                                Opacity="0" />
+
+                                        <!-- Caret. 16px wide, so every level lands on the same grid. -->
+                                        <Button Grid.Column="0" Margin="16,0,0,0"
+                                                Style="{StaticResource TreeCaretStyle}"
+                                                Tag="{x:Bind}"
+                                                IsEnabled="{x:Bind CanExpand, Mode=OneWay}"
+                                                Click="OnToggleConnection">
+                                            <c:LeafyIcon Glyph="{x:Bind CaretGlyph, Mode=OneWay}" Size="14" />
+                                        </Button>
+
+                                        <!-- Icon with its status badge, then the name -->
+                                        <Button Grid.Column="1"
+                                                Style="{StaticResource TreeRowButtonStyle}"
+                                                Tag="{x:Bind}"
+                                                Click="OnConnectionClick"
+                                                ToolTipService.ToolTip="{x:Bind RedactedUri, Mode=OneWay}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Grid Width="16" Height="16">
+                                                    <c:LeafyIcon Glyph="{x:Bind IconGlyph, Mode=OneWay}" Size="16" />
+                                                    <c:StatusMarker Status="{x:Bind StatusMarker, Mode=OneWay}"
+                                                                    HorizontalAlignment="Right"
+                                                                    VerticalAlignment="Bottom" />
+                                                </Grid>
+                                                <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Row actions, revealed on hover -->
+                                        <Button x:Name="RowActions" Grid.Column="2" Margin="0,0,16,0"
+                                                Style="{StaticResource SidebarIconButtonStyle}"
+                                                Opacity="0" Tag="{x:Bind}"
+                                                Click="OnConnectionActions">
+                                            <c:LeafyIcon Glyph="Ellipsis" Size="14" />
+                                        </Button>
                                     </Grid>
-                                </Button>
 
-                                <StackPanel Margin="18,0,0,2"
-                                            Visibility="{x:Bind c:Converters.Visible(IsExpanded), Mode=OneWay}">
-                                    <ProgressBar IsIndeterminate="True" Margin="8,4"
-                                                 Visibility="{x:Bind c:Converters.Visible(IsLoading), Mode=OneWay}" />
-
-                                    <ItemsControl ItemsSource="{x:Bind Collections}">
+                                    <!-- Databases -->
+                                    <ItemsControl ItemsSource="{x:Bind Databases}"
+                                                  Visibility="{x:Bind c:Converters.Visible(IsExpanded), Mode=OneWay}">
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:CollectionNodeViewModel">
-                                                <Button Style="{StaticResource SidebarButtonStyle}"
-                                                        Tag="{x:Bind}" Click="OnCollectionClick">
-                                                    <Button.ContextFlyout>
-                                                        <MenuFlyout>
-                                                            <MenuFlyoutItem Text="Open" Tag="{x:Bind}"
-                                                                            Click="OnCollectionClick" />
-                                                            <MenuFlyoutSeparator />
-                                                            <MenuFlyoutItem Text="Rename collection"
-                                                                            Tag="{x:Bind}"
-                                                                            Click="OnRenameCollection" />
-                                                            <MenuFlyoutItem Text="Delete all documents"
-                                                                            Tag="{x:Bind}"
-                                                                            Click="OnClearCollection" />
-                                                            <MenuFlyoutItem Text="Drop collection"
-                                                                            Tag="{x:Bind}"
-                                                                            Click="OnDropCollection">
-                                                                <MenuFlyoutItem.Icon>
-                                                                    <FontIcon Glyph="&#xE74D;" />
-                                                                </MenuFlyoutItem.Icon>
-                                                            </MenuFlyoutItem>
-                                                        </MenuFlyout>
-                                                    </Button.ContextFlyout>
+                                            <DataTemplate x:DataType="vm:DatabaseNodeViewModel">
+                                                <StackPanel>
 
-                                                    <StackPanel Orientation="Horizontal" Spacing="7">
-                                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="12"
-                                                                  Foreground="{ThemeResource SidebarMutedBrush}" />
-                                                        <TextBlock Text="{x:Bind Name}" FontSize="12"
-                                                                   TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Text="{x:Bind KindLabel}" FontSize="10"
-                                                                   VerticalAlignment="Center"
-                                                                   Foreground="{ThemeResource SidebarMutedBrush}" />
-                                                    </StackPanel>
-                                                </Button>
+                                                    <!-- Database row: 16 base plus one caret slot -->
+                                                    <Grid Height="28"
+                                                          Tag="{x:Bind}"
+                                                          PointerEntered="OnRowPointerEntered"
+                                                          PointerExited="OnRowPointerExited"
+                                                          RightTapped="OnDatabaseActions">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Border x:Name="RowFill" Grid.ColumnSpan="3"
+                                                                Background="{ThemeResource SidebarItemHoverBrush}"
+                                                                Opacity="0" />
+
+                                                        <Button Grid.Column="0" Margin="34,0,0,0"
+                                                                Style="{StaticResource TreeCaretStyle}"
+                                                                Tag="{x:Bind}"
+                                                                Click="OnToggleDatabase">
+                                                            <c:LeafyIcon Glyph="{x:Bind CaretGlyph, Mode=OneWay}" Size="14" />
+                                                        </Button>
+
+                                                        <Button Grid.Column="1"
+                                                                Style="{StaticResource TreeRowButtonStyle}"
+                                                                Tag="{x:Bind}"
+                                                                Click="OnDatabaseClick">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <c:LeafyIcon Glyph="{x:Bind IconGlyph}" Size="16" />
+                                                                <TextBlock Text="{x:Bind Name}" FontSize="12"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                        </Button>
+
+                                                        <Button x:Name="RowActions" Grid.Column="2" Margin="0,0,16,0"
+                                                                Style="{StaticResource SidebarIconButtonStyle}"
+                                                                Opacity="0" Tag="{x:Bind}"
+                                                                Click="OnDatabaseActions">
+                                                            <c:LeafyIcon Glyph="Ellipsis" Size="14" />
+                                                        </Button>
+                                                    </Grid>
+
+                                                    <!-- Collections: 16 base plus two caret slots -->
+                                                    <ItemsControl ItemsSource="{x:Bind Collections}"
+                                                                  Visibility="{x:Bind c:Converters.Visible(IsExpanded), Mode=OneWay}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:CollectionNodeViewModel">
+                                                                <Grid Height="28"
+                                                                      Tag="{x:Bind}"
+                                                                      PointerEntered="OnRowPointerEntered"
+                                                                      PointerExited="OnRowPointerExited"
+                                                                      RightTapped="OnCollectionActions">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+
+                                                                    <Border x:Name="RowFill" Grid.ColumnSpan="2"
+                                                                            Background="{ThemeResource SidebarItemHoverBrush}"
+                                                                            Opacity="0" />
+
+                                                                    <Button Grid.Column="0" Margin="70,0,0,0"
+                                                                            Style="{StaticResource TreeRowButtonStyle}"
+                                                                            Tag="{x:Bind}"
+                                                                            Click="OnCollectionClick"
+                                                                            ToolTipService.ToolTip="{x:Bind Tooltip}">
+                                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                            <c:LeafyIcon Glyph="{x:Bind IconGlyph}" Size="16" />
+                                                                            <TextBlock Text="{x:Bind Name}" FontSize="12"
+                                                                                       TextTrimming="CharacterEllipsis" />
+                                                                        </StackPanel>
+                                                                    </Button>
+
+                                                                    <Button x:Name="RowActions" Grid.Column="1" Margin="0,0,16,0"
+                                                                            Style="{StaticResource SidebarIconButtonStyle}"
+                                                                            Opacity="0" Tag="{x:Bind}"
+                                                                            Click="OnCollectionActions">
+                                                                        <c:LeafyIcon Glyph="Ellipsis" Size="14" />
+                                                                    </Button>
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-
-            <!-- Footer -->
-            <StackPanel Grid.Row="4" Padding="14,10" Spacing="4"
-                        BorderBrush="{ThemeResource SidebarHoverBrush}" BorderThickness="0,1,0,0">
-                <Button Style="{StaticResource SidebarButtonStyle}"
-                        Command="{x:Bind Shell.ShowPerformanceCommand}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE9D9;" FontSize="13" />
-                        <TextBlock Text="Performance" FontSize="12" />
-                    </StackPanel>
-                </Button>
-                <Button Style="{StaticResource SidebarButtonStyle}"
-                        Command="{x:Bind Shell.DisconnectCommand}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE7E8;" FontSize="13" />
-                        <TextBlock Text="Disconnect" FontSize="12" />
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-        </Grid>
-
-        <!-- ========================== Main area ========================== -->
-        <Grid Grid.Column="1" Background="{ThemeResource CanvasBrush}">
-
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10"
-                        Visibility="{x:Bind c:Converters.Visible(ShowEmptyState), Mode=OneWay}">
-                <FontIcon Glyph="&#xE8A4;" FontSize="34" Foreground="{ThemeResource InkFaintBrush}" />
-                <TextBlock Text="Select a collection to start querying"
-                           Foreground="{ThemeResource InkMutedBrush}" />
-            </StackPanel>
-
-            <TabView x:Name="Tabs" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent"
-                     TabItemsSource="{x:Bind Shell.Tabs}"
-                     SelectedItem="{x:Bind Shell.ActiveTab, Mode=TwoWay}"
-                     TabCloseRequested="OnTabCloseRequested"
-                     Visibility="{x:Bind c:Converters.Visible(ShowTabs), Mode=OneWay}">
-                <TabView.TabItemTemplate>
-                    <DataTemplate x:DataType="vm:CollectionTabViewModel">
-                        <TabViewItem Header="{x:Bind Collection}"
-                                     ToolTipService.ToolTip="{x:Bind Namespace}">
-                            <TabViewItem.IconSource>
-                                <FontIconSource Glyph="&#xE8A4;" />
-                            </TabViewItem.IconSource>
-                            <local:CollectionTabView Tab="{x:Bind}" />
-                        </TabViewItem>
-                    </DataTemplate>
-                </TabView.TabItemTemplate>
-            </TabView>
-
-            <!-- Performance -->
-            <ScrollViewer Padding="24,16,24,24"
-                          Visibility="{x:Bind c:Converters.Visible(Shell.IsPerformanceOpen), Mode=OneWay}">
-                <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Left">
-
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="Performance" Style="{StaticResource PageTitleStyle}" />
-                            <TextBlock Style="{StaticResource MutedTextStyle}"
-                                       Text="{x:Bind Shell.Performance.Status, Mode=OneWay}" />
-                        </StackPanel>
-                        <Button Grid.Column="1" Content="Start / pause"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Command="{x:Bind Shell.Performance.ToggleCommand}" />
-                        <Button Grid.Column="2" Content="Back to collections"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Command="{x:Bind Shell.ShowCollectionsCommand}" />
-                    </Grid>
-
-                    <InfoBar Severity="Error" IsClosable="False"
-                             IsOpen="{x:Bind c:Converters.HasText(Shell.Performance.ErrorMessage), Mode=OneWay}"
-                             Message="{x:Bind Shell.Performance.ErrorMessage, Mode=OneWay}" />
-
-                    <ItemsControl>
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="10" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-
-                        <Border Style="{StaticResource StatTileStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Inserts/sec" Style="{StaticResource StatLabelStyle}" />
-                                <TextBlock Style="{StaticResource StatValueStyle}"
-                                           Text="{x:Bind Shell.Performance.InsertRateText, Mode=OneWay}" />
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource StatTileStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Queries/sec" Style="{StaticResource StatLabelStyle}" />
-                                <TextBlock Style="{StaticResource StatValueStyle}"
-                                           Text="{x:Bind Shell.Performance.QueryRateText, Mode=OneWay}" />
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource StatTileStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Updates/sec" Style="{StaticResource StatLabelStyle}" />
-                                <TextBlock Style="{StaticResource StatValueStyle}"
-                                           Text="{x:Bind Shell.Performance.UpdateRateText, Mode=OneWay}" />
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource StatTileStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Deletes/sec" Style="{StaticResource StatLabelStyle}" />
-                                <TextBlock Style="{StaticResource StatValueStyle}"
-                                           Text="{x:Bind Shell.Performance.DeleteRateText, Mode=OneWay}" />
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource StatTileStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Commands/sec" Style="{StaticResource StatLabelStyle}" />
-                                <TextBlock Style="{StaticResource StatValueStyle}"
-                                           Text="{x:Bind Shell.Performance.CommandRateText, Mode=OneWay}" />
-                            </StackPanel>
-                        </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
                     </ItemsControl>
-
-                    <Border Style="{StaticResource CardStyle}">
-                        <Grid ColumnSpacing="24" RowSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Connections"
-                                       Style="{StaticResource SectionHeaderStyle}" />
-                            <TextBlock Grid.Row="0" Grid.Column="1" FontSize="12"
-                                       Text="{x:Bind Shell.Performance.Connections, Mode=OneWay}" />
-
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Memory"
-                                       Style="{StaticResource SectionHeaderStyle}" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" FontSize="12"
-                                       Text="{x:Bind Shell.Performance.Memory, Mode=OneWay}" />
-
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Network"
-                                       Style="{StaticResource SectionHeaderStyle}" />
-                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="16">
-                                <TextBlock FontSize="12"
-                                           Text="{x:Bind Shell.Performance.NetworkIn, Mode=OneWay}" />
-                                <TextBlock FontSize="12"
-                                           Text="{x:Bind Shell.Performance.NetworkOut, Mode=OneWay}" />
-                            </StackPanel>
-
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Uptime"
-                                       Style="{StaticResource SectionHeaderStyle}" />
-                            <TextBlock Grid.Row="3" Grid.Column="1" FontSize="12"
-                                       Text="{x:Bind Shell.Performance.Uptime, Mode=OneWay}" />
-                        </Grid>
-                    </Border>
-
-                    <StackPanel Spacing="8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="CURRENT OPERATIONS" VerticalAlignment="Center"
-                                       Style="{StaticResource SectionHeaderStyle}" />
-                            <CheckBox Grid.Column="1" Content="Include idle" FontSize="12"
-                                      IsChecked="{x:Bind Shell.Performance.ShowIdleOperations, Mode=TwoWay}" />
-                        </Grid>
-
-                        <Border Style="{StaticResource CardStyle}" Padding="0">
-                            <ListView ItemsSource="{x:Bind Shell.Performance.Operations}" SelectionMode="None"
-                                      MaxHeight="320">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="svc:CurrentOperation">
-                                        <Grid ColumnSpacing="12" Padding="0,6">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="80" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="90" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{x:Bind Type}" FontSize="12" />
-                                            <TextBlock Grid.Column="1" Text="{x:Bind Namespace}" FontSize="12"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       FontFamily="{StaticResource CodeFontFamily}" />
-                                            <TextBlock Grid.Column="2" FontSize="12"
-                                                       Text="{x:Bind SecondsRunning}" />
-                                            <Button Grid.Column="3" Content="Kill" FontSize="11"
-                                                    Style="{StaticResource DangerButtonStyle}" Padding="10,2"
-                                                    Tag="{x:Bind}" Click="OnKillOperation" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </Border>
-                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
+
+            <!-- Drag handle, over the right edge of the sidebar -->
+            <Border Grid.Row="0" Grid.RowSpan="6"
+                    Width="4" HorizontalAlignment="Right"
+                    Background="Transparent"
+                    ManipulationMode="TranslateX"
+                    ManipulationDelta="OnSidebarResize"
+                    PointerEntered="OnSplitterPointerEntered"
+                    PointerExited="OnSplitterPointerExited" />
+        </Grid>
+
+        <!-- ======================= Workspace ======================= -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Tab strip -->
+            <Grid Grid.Row="0" MinHeight="36"
+                  Background="{ThemeResource TabStripBackgroundBrush}"
+                  BorderBrush="{ThemeResource TabBorderBrush}"
+                  BorderThickness="0,0,0,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <ScrollViewer Grid.Column="0"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Auto">
+                    <ItemsControl ItemsSource="{x:Bind Shell.Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:WorkspaceTabViewModel">
+                                <c:WorkspaceTabItem Tab="{x:Bind}"
+                                                    Selected="OnTabSelected"
+                                                    CloseRequested="OnTabClosed"
+                                                    CloseOthersRequested="OnTabCloseOthers" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <Button Grid.Column="1" Margin="4"
+                        Style="{StaticResource SidebarIconButtonStyle}"
+                        AutomationProperties.Name="New tab"
+                        ToolTipService.ToolTip="New tab"
+                        Click="OnNewTab">
+                    <c:LeafyIcon Glyph="Plus" Size="14" />
+                </Button>
+            </Grid>
+
+            <!-- Active workspace -->
+            <Grid Grid.Row="1" Background="{ThemeResource SurfaceBrush}">
+                <ContentControl x:Name="WorkspaceHost"
+                                HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch"
+                                Content="{x:Bind Shell.ActiveTab, Mode=OneWay}"
+                                />
+
+                <!-- Nothing open: Compass shows a faint logo mark -->
+                <Viewbox Width="160" Height="160" Opacity="0.05"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                         Visibility="{x:Bind c:Converters.Hidden(Shell.HasActiveTab), Mode=OneWay}">
+                    <c:LeafyIcon Glyph="Cap" Size="16"
+                                 Foreground="{ThemeResource InkBrush}" />
+                </Viewbox>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

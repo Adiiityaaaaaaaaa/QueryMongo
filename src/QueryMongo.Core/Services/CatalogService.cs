@@ -20,8 +20,43 @@ public sealed class CatalogService(MongoSession session)
             .ToList();
     }
 
+    /// <summary>
+    /// The same listing with the <c>dbStats</c> counters the database table shows.
+    ///
+    /// This is one command per database, so it is kept off the plain listing the sidebar
+    /// uses and only paid for when a database list is actually on screen. A database that
+    /// refuses the command keeps its counters null rather than failing the listing.
+    /// </summary>
+    public async Task<IReadOnlyList<DatabaseInfo>> ListDatabasesWithStatsAsync(
+        CancellationToken ct = default)
+    {
+        var databases = await ListDatabasesAsync(ct).ConfigureAwait(false);
+        var results = new List<DatabaseInfo>(databases.Count);
+
+        foreach (var database in databases)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                var stats = await _session.Client.GetDatabase(database.Name)
+                    .RunCommandAsync<BsonDocument>(
+                        new BsonDocument { { "dbStats", 1 } }, cancellationToken: ct)
+                    .ConfigureAwait(false);
+
+                results.Add(database.WithStats(stats));
+            }
+            catch (MongoException)
+            {
+                results.Add(database);
+            }
+        }
+
+        return results;
+    }
+
     public async Task<IReadOnlyList<CollectionInfo>> ListCollectionsAsync(
-        string database, CancellationToken ct = default)
+        string database, bool withCounts = true, CancellationToken ct = default)
     {
         var db = _session.Client.GetDatabase(database);
 
@@ -30,12 +65,99 @@ public sealed class CatalogService(MongoSession session)
         using var cursor = await db.ListCollectionsAsync(cancellationToken: ct).ConfigureAwait(false);
         var docs = await cursor.ToListAsync(ct).ConfigureAwait(false);
 
-        return docs.Select(doc => new CollectionInfo(
-                database,
-                doc.GetValue("name", BsonString.Empty).AsString,
-                ReadKind(doc)))
+        var counts = withCounts
+            ? await GetCollectionCountsAsync(database, ct).ConfigureAwait(false)
+            : new Dictionary<string, CollectionStats>();
+
+        return docs.Select(doc =>
+            {
+                var name = doc.GetValue("name", BsonString.Empty).AsString;
+                var options = doc.GetValue("options", new BsonDocument()).AsBsonDocument;
+                var kind = ReadKind(doc);
+
+                var info = new CollectionInfo(database, name, kind)
+                {
+                    Properties = ReadProperties(kind, options),
+                    ViewOn = options.Contains("viewOn") ? options["viewOn"].AsString : null
+                };
+
+                return counts.TryGetValue(name, out var stats)
+                    ? info with
+                    {
+                        DocumentCount = stats.DocumentCount,
+                        StorageSizeBytes = stats.StorageSizeBytes,
+                        DataSizeBytes = stats.DataSizeBytes,
+                        FreeStorageSizeBytes = stats.FreeStorageSizeBytes,
+                        TotalIndexSizeBytes = stats.TotalIndexSizeBytes,
+                        AverageDocumentSizeBytes = stats.AverageDocumentSizeBytes,
+                        IndexCount = stats.IndexCount
+                    }
+                    : info;
+            })
             .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    /// <summary>
+    /// Counters for every collection in a database, used to annotate the sidebar.
+    ///
+    /// $collStats reads metadata rather than scanning, so this is cheap per collection;
+    /// a collection that refuses it (a view, or one the user cannot read) is skipped
+    /// rather than failing the whole listing.
+    /// </summary>
+    private async Task<Dictionary<string, CollectionStats>> GetCollectionCountsAsync(
+        string database, CancellationToken ct)
+    {
+        var db = _session.Client.GetDatabase(database);
+
+        List<string> names;
+        try
+        {
+            using var cursor = await db.ListCollectionNamesAsync(cancellationToken: ct)
+                .ConfigureAwait(false);
+            names = await cursor.ToListAsync(ct).ConfigureAwait(false);
+        }
+        catch (MongoException)
+        {
+            return [];
+        }
+
+        var results = new Dictionary<string, CollectionStats>(StringComparer.Ordinal);
+
+        foreach (var name in names)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                results[name] = await GetStatsAsync(database, name, ct).ConfigureAwait(false);
+            }
+            catch (MongoException)
+            {
+                // Views and restricted collections have no storage stats.
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// The badges the collection list shows, read off the collection's creation options
+    /// the way Compass reads them.
+    /// </summary>
+    private static List<string> ReadProperties(CollectionKind kind, BsonDocument options)
+    {
+        var properties = new List<string>();
+
+        if (kind == CollectionKind.View) properties.Add("view");
+        if (kind == CollectionKind.TimeSeries) properties.Add("timeseries");
+
+        if (options.GetValue("capped", BsonBoolean.False).ToBoolean()) properties.Add("capped");
+        if (options.Contains("clusteredIndex")) properties.Add("clustered");
+        if (options.Contains("collation")) properties.Add("collation");
+        if (options.Contains("encryptedFields")) properties.Add("fle2");
+
+        return properties;
     }
 
     private static CollectionKind ReadKind(BsonDocument doc)
@@ -83,7 +205,13 @@ public sealed class CatalogService(MongoSession session)
                 StorageSizeBytes: s.GetValue("storageSize", BsonInt64.Create(0L)).ToInt64(),
                 TotalIndexSizeBytes: s.GetValue("totalIndexSize", BsonInt64.Create(0L)).ToInt64(),
                 IndexCount: s.GetValue("nindexes", BsonInt32.Create(0)).ToInt32(),
-                AverageDocumentSizeBytes: s.GetValue("avgObjSize", BsonDouble.Create(0.0)).ToDouble());
+                AverageDocumentSizeBytes: s.GetValue("avgObjSize", BsonDouble.Create(0.0)).ToDouble())
+            {
+                DataSizeBytes = s.GetValue("size", BsonInt64.Create(0L)).ToInt64(),
+                FreeStorageSizeBytes = s.Contains("freeStorageSize")
+                    ? s["freeStorageSize"].ToInt64()
+                    : null
+            };
         }
         catch (MongoCommandException)
         {
