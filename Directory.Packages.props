@@ -16,6 +16,8 @@
 
   <ItemGroup Label="Data access">
     <PackageVersion Include="MongoDB.Driver" Version="3.11.2" />
+    <!-- Local port forwarding, so a deployment reachable only through a bastion works. -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Application plumbing">

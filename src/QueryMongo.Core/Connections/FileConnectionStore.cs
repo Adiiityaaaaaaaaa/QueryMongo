@@ -36,6 +36,12 @@ public sealed class FileConnectionStore : IConnectionStore, IDisposable
 
     private sealed record Entry(Guid Id, string Name, string Secret, DateTimeOffset? LastUsedUtc, bool IsFavorite);
 
+    /// <summary>
+    /// What the encrypted blob holds. SSH credentials are as sensitive as the
+    /// connection string, so they live inside the same protected payload.
+    /// </summary>
+    private sealed record Secret(string ConnectionString, SshOptions? Ssh);
+
     public async Task<IReadOnlyList<ConnectionProfile>> LoadAsync(CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
@@ -61,7 +67,8 @@ public sealed class FileConnectionStore : IConnectionStore, IDisposable
             entries.Add(new Entry(
                 profile.Id,
                 profile.Name,
-                Protect(profile.ConnectionString),
+                Protect(JsonSerializer.Serialize(
+                    new Secret(profile.ConnectionString, profile.Ssh), JsonOptions)),
                 profile.LastUsedUtc,
                 profile.IsFavorite));
             await WriteAsync(entries, ct).ConfigureAwait(false);
@@ -122,16 +129,24 @@ public sealed class FileConnectionStore : IConnectionStore, IDisposable
             var bytes = ProtectedData.Unprotect(
                 Convert.FromBase64String(entry.Secret), Entropy, DataProtectionScope.CurrentUser);
 
+            var text = Encoding.UTF8.GetString(bytes);
+
+            // Files written before SSH support held the bare connection string.
+            var secret = text.StartsWith('{')
+                ? JsonSerializer.Deserialize<Secret>(text, JsonOptions) ?? new Secret(text, null)
+                : new Secret(text, null);
+
             return new ConnectionProfile
             {
                 Id = entry.Id,
                 Name = entry.Name,
-                ConnectionString = Encoding.UTF8.GetString(bytes),
+                ConnectionString = secret.ConnectionString,
+                Ssh = secret.Ssh,
                 LastUsedUtc = entry.LastUsedUtc,
                 IsFavorite = entry.IsFavorite
             };
         }
-        catch (Exception e) when (e is CryptographicException or FormatException)
+        catch (Exception e) when (e is CryptographicException or FormatException or JsonException)
         {
             // Written by a different user or machine — drop it rather than fail the load.
             return null;

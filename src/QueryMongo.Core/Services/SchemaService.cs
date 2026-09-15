@@ -16,7 +16,8 @@ public sealed record SchemaField(
     int Present,
     int SampleSize,
     IReadOnlyList<SchemaTypeShare> Types,
-    IReadOnlyList<string> Examples)
+    IReadOnlyList<string> Examples,
+    IReadOnlyList<BsonValue> Values)
 {
     /// <summary>Share of sampled documents that carry this field at all.</summary>
     public double Presence => SampleSize == 0 ? 0 : (double)Present / SampleSize;
@@ -44,6 +45,12 @@ public sealed class SchemaService(MongoSession session)
     private const int MaxDepth = 4;
 
     private const int MaxExamples = 3;
+
+    /// <summary>
+    /// Values kept per field for the distribution charts. Capped so a wide collection
+    /// does not hold the whole sample in memory twice.
+    /// </summary>
+    private const int MaxChartValues = 1000;
 
     public async Task<SchemaReport> AnalyzeAsync(
         string database,
@@ -120,6 +127,7 @@ public sealed class SchemaService(MongoSession session)
     {
         private readonly Dictionary<string, int> _types = new(StringComparer.Ordinal);
         private readonly List<string> _examples = [];
+        private readonly List<BsonValue> _values = [];
         private int _present;
 
         public void Observe(BsonValue value)
@@ -128,6 +136,10 @@ public sealed class SchemaService(MongoSession session)
 
             var typeName = Describe(value);
             _types[typeName] = _types.GetValueOrDefault(typeName) + 1;
+
+            // Scalars feed the histogram; documents and arrays have no useful distribution.
+            if (_values.Count < MaxChartValues && value is not (BsonDocument or BsonArray))
+                _values.Add(value);
 
             if (_examples.Count < MaxExamples && value is not (BsonDocument or BsonArray))
             {
@@ -145,7 +157,7 @@ public sealed class SchemaService(MongoSession session)
                     t.Key, t.Value, _present == 0 ? 0 : (double)t.Value / _present))
                 .ToList();
 
-            return new SchemaField(path, _present, sampleSize, types, _examples);
+            return new SchemaField(path, _present, sampleSize, types, _examples, _values);
         }
 
         private static string Describe(BsonValue value) => value.BsonType switch

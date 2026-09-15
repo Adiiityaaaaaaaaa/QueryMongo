@@ -12,6 +12,10 @@ namespace QueryMongo.App.ViewModels;
 /// </summary>
 public sealed partial class DatabaseNodeViewModel(DatabaseInfo info, CatalogService catalog) : ObservableObject
 {
+    /// <summary>Segoe Fluent chevrons, pointing down when open and right when closed.</summary>
+    private const string ChevronDown = "";
+    private const string ChevronRight = "";
+
     private readonly CatalogService _catalog = catalog;
 
     /// <summary>Everything loaded for this database, before the sidebar filter.</summary>
@@ -22,7 +26,11 @@ public sealed partial class DatabaseNodeViewModel(DatabaseInfo info, CatalogServ
 
     [ObservableProperty] public partial bool IsLoading { get; set; }
 
-    [ObservableProperty] public partial bool IsExpanded { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChevronGlyph))]
+    public partial bool IsExpanded { get; set; }
+
+    public string ChevronGlyph => IsExpanded ? ChevronDown : ChevronRight;
 
     public DatabaseInfo Info { get; } = info;
 

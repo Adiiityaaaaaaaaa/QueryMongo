@@ -1,0 +1,167 @@
+<UserControl
+    x:Class="QueryMongo.App.Views.Panes.AggregationPane"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:c="using:QueryMongo.App.Controls"
+    xmlns:vm="using:QueryMongo.App.ViewModels">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}">
+            <StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Run" Style="{StaticResource PrimaryButtonStyle}"
+                            Command="{x:Bind Model.RunCommand}" />
+                    <Button Content="Add stage" Style="{StaticResource SecondaryButtonStyle}"
+                            Click="OnAddStage" />
+                    <Button Content="Preview stages" Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{x:Bind Model.PreviewStagesCommand}" />
+                    <Button Content="Explain" Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{x:Bind Model.ExplainCommand}" />
+                    <Button Content="Text mode" Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{x:Bind Model.ToggleTextModeCommand}" />
+                    <Button Content="Export to language" Style="{StaticResource SecondaryButtonStyle}"
+                            Click="OnExportPipeline" />
+                    <Button Content="Clear" Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{x:Bind Model.ClearPipelineCommand}" />
+                    <ProgressRing IsActive="{x:Bind Model.IsBusy, Mode=OneWay}" Width="16" Height="16" />
+                </StackPanel>
+
+                <InfoBar Severity="Error" IsClosable="False"
+                         IsOpen="{x:Bind c:Converters.HasText(Model.ErrorMessage), Mode=OneWay}"
+                         Message="{x:Bind Model.ErrorMessage, Mode=OneWay}" />
+
+                <InfoBar Severity="Warning" IsClosable="False" Title="This pipeline writes data"
+                         IsOpen="{x:Bind Model.WritesToCollection, Mode=OneWay}"
+                         Message="{x:Bind Model.StatusMessage, Mode=OneWay}">
+                    <InfoBar.ActionButton>
+                        <Button Content="Run and save" Click="OnRunWritingPipeline" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnSpacing="0" Background="{ThemeResource CanvasBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="420" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Stage list -->
+            <ScrollViewer Grid.Column="0" Padding="20,14,14,14"
+                          Visibility="{x:Bind c:Converters.Hidden(Model.IsTextMode), Mode=OneWay}">
+                <ItemsControl ItemsSource="{x:Bind Model.Stages}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PipelineStageViewModel">
+                            <Border Style="{StaticResource CardStyle}" Padding="0" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <Grid Padding="12,8" ColumnSpacing="8"
+                                          Background="{ThemeResource CanvasBrush}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="170" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <CheckBox Grid.Column="0" MinWidth="0"
+                                                  IsChecked="{x:Bind IsEnabled, Mode=TwoWay}"
+                                                  ToolTipService.ToolTip="Include this stage" />
+
+                                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  FontFamily="{StaticResource CodeFontFamily}" FontSize="12"
+                                                  ItemsSource="{x:Bind vm:PipelineStageViewModel.Operators}"
+                                                  SelectedItem="{x:Bind Operator, Mode=TwoWay}" />
+
+                                        <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="11"
+                                                   Foreground="{ThemeResource InkFaintBrush}"
+                                                   Text="{x:Bind PreviewSummary, Mode=OneWay}" />
+
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="0">
+                                            <Button Style="{StaticResource IconButtonStyle}" Tag="{x:Bind}"
+                                                    Click="OnStageUp" ToolTipService.ToolTip="Move up">
+                                                <FontIcon Glyph="&#xE74A;" FontSize="11" />
+                                            </Button>
+                                            <Button Style="{StaticResource IconButtonStyle}" Tag="{x:Bind}"
+                                                    Click="OnStageDown" ToolTipService.ToolTip="Move down">
+                                                <FontIcon Glyph="&#xE74B;" FontSize="11" />
+                                            </Button>
+                                            <Button Style="{StaticResource IconButtonStyle}" Tag="{x:Bind}"
+                                                    Click="OnStageDuplicate" ToolTipService.ToolTip="Duplicate">
+                                                <FontIcon Glyph="&#xF413;" FontSize="11" />
+                                            </Button>
+                                            <Button Style="{StaticResource IconButtonStyle}" Tag="{x:Bind}"
+                                                    Click="OnStageRemove" ToolTipService.ToolTip="Remove">
+                                                <FontIcon Glyph="&#xE74D;" FontSize="11"
+                                                          Foreground="{ThemeResource DangerBrush}" />
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <TextBox Margin="12,10,12,8" Style="{StaticResource CodeEditorStyle}"
+                                             MinHeight="92"
+                                             Text="{x:Bind Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                    <InfoBar Margin="12,0,12,8" Severity="Error" IsClosable="False"
+                                             IsOpen="{x:Bind c:Converters.HasText(Error), Mode=OneWay}"
+                                             Message="{x:Bind Error, Mode=OneWay}" />
+
+                                    <ItemsControl ItemsSource="{x:Bind Preview}" Margin="12,0,12,10">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:DocumentViewModel">
+                                                <TextBlock Margin="0,2" TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Style="{StaticResource CodeTextBlockStyle}"
+                                                           c:JsonHighlight.Json="{x:Bind Preview}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Text mode -->
+            <TextBox Grid.Column="0" Margin="20,14,14,14" Style="{StaticResource CodeEditorStyle}"
+                     Visibility="{x:Bind c:Converters.Visible(Model.IsTextMode), Mode=OneWay}"
+                     Text="{x:Bind Model.TextPipeline, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+            <!-- Results -->
+            <Grid Grid.Column="1" Background="{ThemeResource SurfaceBrush}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" BorderBrush="{ThemeResource HairlineBrush}" BorderThickness="1,0,0,1"
+                        Padding="14,10">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="OUTPUT" Style="{StaticResource SectionHeaderStyle}" />
+                        <TextBlock Style="{StaticResource MutedTextStyle}"
+                                   Text="{x:Bind Model.ResultSummary, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
+
+                <ScrollViewer Grid.Row="1" Padding="14,10">
+                    <ItemsControl ItemsSource="{x:Bind Model.Results}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DocumentViewModel">
+                                <Border Style="{StaticResource DocumentCardStyle}" Padding="10,8">
+                                    <TextBlock Style="{StaticResource CodeTextBlockStyle}"
+                                               c:JsonHighlight.Json="{x:Bind Json}" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

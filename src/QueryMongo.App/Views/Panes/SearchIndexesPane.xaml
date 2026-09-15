@@ -1,0 +1,95 @@
+<UserControl
+    x:Class="QueryMongo.App.Views.Panes.SearchIndexesPane"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:c="using:QueryMongo.App.Controls"
+    xmlns:svc="using:QueryMongo.Core.Services">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap"
+                           Style="{StaticResource MutedTextStyle}"
+                           Text="{x:Bind Model.Summary, Mode=OneWay}" />
+
+                <Button Grid.Column="1" Content="Create search index"
+                        Style="{StaticResource PrimaryButtonStyle}" Click="OnCreate"
+                        IsEnabled="{x:Bind Model.IsSupported, Mode=OneWay}" />
+
+                <Button Grid.Column="2" Style="{StaticResource IconButtonStyle}"
+                        Command="{x:Bind Model.RefreshCommand}" ToolTipService.ToolTip="Refresh">
+                    <FontIcon Glyph="&#xE72C;" FontSize="13" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Padding="20,14" Background="{ThemeResource CanvasBrush}">
+            <StackPanel Spacing="10">
+
+                <!-- Atlas-only notice: this is the expected state elsewhere, not an error. -->
+                <InfoBar Severity="Informational" IsClosable="False"
+                         Title="Atlas Search is not available here"
+                         IsOpen="{x:Bind c:Converters.Not(Model.IsSupported), Mode=OneWay}"
+                         Message="Search indexes are managed by MongoDB Atlas. A self-hosted or local deployment does not provide them." />
+
+                <ItemsControl ItemsSource="{x:Bind Model.Indexes}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="svc:SearchIndexInfo">
+                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,8">
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Spacing="3">
+                                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="13" />
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Border Background="{ThemeResource CanvasBrush}" CornerRadius="3"
+                                                        Padding="6,2" BorderThickness="1"
+                                                        BorderBrush="{ThemeResource HairlineBrush}">
+                                                    <TextBlock Text="{x:Bind Type}" FontSize="11"
+                                                               Foreground="{ThemeResource InkMutedBrush}" />
+                                                </Border>
+                                                <TextBlock Text="{x:Bind StatusDescription}" FontSize="11"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{ThemeResource InkMutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <Button Grid.Column="2" Content="Edit" VerticalAlignment="Center"
+                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                Tag="{x:Bind}" Click="OnEdit" />
+                                        <Button Grid.Column="3" Content="Drop" VerticalAlignment="Center"
+                                                Style="{StaticResource DangerButtonStyle}"
+                                                Tag="{x:Bind}" Click="OnDrop" />
+                                    </Grid>
+
+                                    <Border Background="{ThemeResource CanvasBrush}" CornerRadius="4"
+                                            Padding="10,8">
+                                        <TextBlock Style="{StaticResource CodeTextBlockStyle}"
+                                                   c:JsonHighlight.Json="{x:Bind DefinitionJson}" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

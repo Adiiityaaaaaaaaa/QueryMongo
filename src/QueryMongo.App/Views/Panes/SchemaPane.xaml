@@ -1,0 +1,138 @@
+<UserControl
+    x:Class="QueryMongo.App.Views.Panes.SchemaPane"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:c="using:QueryMongo.App.Controls"
+    xmlns:vm="using:QueryMongo.App.ViewModels">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}">
+            <StackPanel Spacing="8">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource FieldLabelStyle}">
+                        <TextBlock Text="Filter" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource InkMutedBrush}" />
+                    </Border>
+
+                    <TextBox Grid.Column="1" Style="{StaticResource CodeTextBoxStyle}"
+                             PlaceholderText="{}{ }"
+                             Text="{x:Bind Model.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <NumberBox Grid.Column="2" Minimum="10" Maximum="100000" Width="130"
+                               SpinButtonPlacementMode="Compact" Header="Sample size"
+                               Value="{x:Bind Model.SampleSize, Mode=TwoWay}" />
+
+                    <Button Grid.Column="3" Content="Analyze" VerticalAlignment="Bottom"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Command="{x:Bind Model.AnalyzeCommand}" />
+                </Grid>
+
+                <TextBlock Style="{StaticResource MutedTextStyle}"
+                           Text="{x:Bind Model.Summary, Mode=OneWay}" />
+
+                <ProgressBar IsIndeterminate="True"
+                             Visibility="{x:Bind c:Converters.Visible(Model.IsBusy), Mode=OneWay}" />
+
+                <InfoBar Severity="Error" IsClosable="False"
+                         IsOpen="{x:Bind c:Converters.HasText(Model.ErrorMessage), Mode=OneWay}"
+                         Message="{x:Bind Model.ErrorMessage, Mode=OneWay}" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Padding="20,14" Background="{ThemeResource CanvasBrush}">
+            <ItemsControl ItemsSource="{x:Bind Model.Fields}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SchemaFieldViewModel">
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,10">
+                            <Grid ColumnSpacing="20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="280" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Field identity -->
+                                <StackPanel Grid.Column="0" Spacing="5">
+                                    <TextBlock Text="{x:Bind Path}" FontWeight="SemiBold" FontSize="13"
+                                               FontFamily="{StaticResource CodeFontFamily}"
+                                               TextTrimming="CharacterEllipsis" />
+
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Background="{ThemeResource CanvasBrush}" CornerRadius="3"
+                                                Padding="6,2" BorderThickness="1"
+                                                BorderBrush="{ThemeResource HairlineBrush}">
+                                            <TextBlock Text="{x:Bind DominantType}" FontSize="11"
+                                                       Foreground="{ThemeResource InkMutedBrush}" />
+                                        </Border>
+
+                                        <Border Background="{ThemeResource CanvasBrush}" CornerRadius="3"
+                                                Padding="6,2" BorderThickness="1"
+                                                BorderBrush="{ThemeResource WarningBrush}"
+                                                Visibility="{x:Bind c:Converters.Visible(HasMixedTypes)}">
+                                            <TextBlock Text="{x:Bind MixedTypeWarning}" FontSize="11"
+                                                       Foreground="{ThemeResource WarningBrush}" />
+                                        </Border>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="3">
+                                        <ProgressBar Value="{x:Bind PresencePercent}" Maximum="100" Height="4"
+                                                     Foreground="{ThemeResource AccentGreenBrush}" />
+                                        <TextBlock Text="{x:Bind PresenceDescription}" FontSize="10"
+                                                   Foreground="{ThemeResource InkFaintBrush}" />
+                                    </StackPanel>
+
+                                    <TextBlock Text="{x:Bind Examples}" FontSize="11"
+                                               FontFamily="{StaticResource CodeFontFamily}"
+                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                               Foreground="{ThemeResource InkFaintBrush}" />
+                                </StackPanel>
+
+                                <!-- Distribution chart -->
+                                <StackPanel Grid.Column="1" Spacing="6"
+                                            Visibility="{x:Bind c:Converters.Visible(HasChart)}">
+                                    <ItemsControl ItemsSource="{x:Bind Bars}" VerticalAlignment="Bottom">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="3"
+                                                            VerticalAlignment="Bottom" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ChartBarViewModel">
+                                                <StackPanel VerticalAlignment="Bottom" Width="46" Spacing="3"
+                                                            ToolTipService.ToolTip="{x:Bind Tooltip}">
+                                                    <Border Height="{x:Bind BarHeight}" CornerRadius="2,2,0,0"
+                                                            VerticalAlignment="Bottom"
+                                                            Background="{ThemeResource AccentGreenBrush}" />
+                                                    <TextBlock Text="{x:Bind Label}" FontSize="9"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               TextWrapping="NoWrap"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="{ThemeResource InkFaintBrush}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="{x:Bind DistributionSummary}" FontSize="11"
+                                               Foreground="{ThemeResource InkMutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

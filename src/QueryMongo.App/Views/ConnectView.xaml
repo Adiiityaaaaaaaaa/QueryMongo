@@ -5,75 +5,192 @@
     xmlns:c="using:QueryMongo.App.Controls"
     xmlns:conn="using:QueryMongo.Core.Connections">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="720" Margin="32,24,32,48" Spacing="20" HorizontalAlignment="Center">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Connect to MongoDB" FontSize="26" FontWeight="SemiBold" />
-                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Text="Paste a connection string. Saved connections are encrypted for your Windows account." />
+        <!-- ================ Saved connections ================ -->
+        <Grid Grid.Column="0" Background="{ThemeResource SidebarBackgroundBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Padding="18,20,18,12" Spacing="3">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                    <Border Width="26" Height="26" CornerRadius="13"
+                            Background="{ThemeResource AccentGreenBrush}">
+                        <FontIcon Glyph="&#xE81C;" FontSize="13" Foreground="White" />
+                    </Border>
+                    <TextBlock Text="QueryMongo" FontSize="16" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource SidebarTextBrush}" />
+                </StackPanel>
+                <TextBlock Text="SAVED CONNECTIONS" Margin="0,14,0,0" FontSize="11"
+                           FontWeight="SemiBold" CharacterSpacing="40"
+                           Foreground="{ThemeResource SidebarMutedBrush}" />
             </StackPanel>
 
-            <StackPanel Spacing="8">
-                <TextBlock Text="Connection string" Style="{StaticResource SectionHeaderStyle}" />
-                <TextBox Text="{x:Bind Shell.ConnectionString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         Style="{StaticResource CodeTextBoxStyle}"
-                         PlaceholderText="mongodb://localhost:27017"
-                         KeyDown="OnConnectionStringKeyDown" />
+            <ScrollViewer Grid.Row="1" Padding="10,0,10,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Margin="8,6" FontSize="12" TextWrapping="Wrap"
+                               Foreground="{ThemeResource SidebarMutedBrush}"
+                               Visibility="{x:Bind c:Converters.Hidden(HasSaved), Mode=OneWay}"
+                               Text="Connections you use are saved here, encrypted for your Windows account." />
+
+                    <ItemsControl ItemsSource="{x:Bind Shell.SavedConnections}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="conn:ConnectionProfile">
+                                <Button Style="{StaticResource SidebarButtonStyle}" Padding="10,8"
+                                        Tag="{x:Bind}" Click="OnUseSavedConnection">
+                                    <Button.ContextFlyout>
+                                        <MenuFlyout>
+                                            <MenuFlyoutItem Text="Toggle favourite" Tag="{x:Bind}"
+                                                            Click="OnToggleFavorite" />
+                                            <MenuFlyoutItem Text="Forget this connection" Tag="{x:Bind}"
+                                                            Click="OnDeleteSavedConnection">
+                                                <MenuFlyoutItem.Icon>
+                                                    <FontIcon Glyph="&#xE74D;" />
+                                                </MenuFlyoutItem.Icon>
+                                            </MenuFlyoutItem>
+                                        </MenuFlyout>
+                                    </Button.ContextFlyout>
+
+                                    <Grid ColumnSpacing="9">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <FontIcon Grid.Column="0" Glyph="&#xE968;" FontSize="13"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{ThemeResource AccentBrightBrush}" />
+
+                                        <StackPanel Grid.Column="1" Spacing="1">
+                                            <TextBlock Text="{x:Bind Name}" FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <!-- Redacted so a screen share never leaks the password -->
+                                            <TextBlock Text="{x:Bind RedactedConnectionString}" FontSize="11"
+                                                       FontFamily="{StaticResource CodeFontFamily}"
+                                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                                       Foreground="{ThemeResource SidebarMutedBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ================ Connection form ================ -->
+        <ScrollViewer Grid.Column="1" Background="{ThemeResource CanvasBrush}"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="720" Margin="40,32,40,48" Spacing="18" HorizontalAlignment="Left">
+
+                <StackPanel Spacing="5">
+                    <TextBlock Text="New connection" FontSize="26" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource MutedTextStyle}"
+                               Text="Connect to a MongoDB deployment. Saved connections are encrypted with your Windows account and never leave this machine." />
+                </StackPanel>
+
+                <Pivot>
+                    <!-- Connection string -->
+                    <PivotItem Header="Connection">
+                        <StackPanel Spacing="14" Margin="0,10,0,0">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="URI" Style="{StaticResource SectionHeaderStyle}" />
+                                <TextBox Style="{StaticResource CodeTextBoxStyle}"
+                                         PlaceholderText="mongodb://localhost:27017"
+                                         KeyDown="OnConnectionStringKeyDown"
+                                         Text="{x:Bind Shell.ConnectionString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock FontSize="11" Foreground="{ThemeResource InkFaintBrush}"
+                                           Text="Supports mongodb:// and mongodb+srv://. Include ?authSource=admin when authenticating against the admin database." />
+                            </StackPanel>
+                        </StackPanel>
+                    </PivotItem>
+
+                    <!-- SSH tunnel -->
+                    <PivotItem Header="SSH tunnel">
+                        <StackPanel Spacing="14" Margin="0,10,0,0">
+                            <CheckBox x:Name="UseSshCheck" Content="Connect through an SSH bastion"
+                                      Checked="OnSshToggled" Unchecked="OnSshToggled" />
+
+                            <StackPanel x:Name="SshPanel" Spacing="12" Visibility="Collapsed">
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="110" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SshHostBox" Grid.Column="0" Header="Bastion host"
+                                             PlaceholderText="bastion.example.com" />
+                                    <NumberBox x:Name="SshPortBox" Grid.Column="1" Header="Port" Value="22"
+                                               Minimum="1" Maximum="65535" SpinButtonPlacementMode="Compact" />
+                                </Grid>
+
+                                <TextBox x:Name="SshUserBox" Header="Username" PlaceholderText="ubuntu" />
+
+                                <RadioButtons x:Name="SshAuthButtons" SelectedIndex="0"
+                                              Header="Authentication"
+                                              SelectionChanged="OnSshAuthChanged">
+                                    <x:String>Password</x:String>
+                                    <x:String>Private key</x:String>
+                                </RadioButtons>
+
+                                <PasswordBox x:Name="SshPasswordBox" Header="Password" />
+
+                                <StackPanel x:Name="SshKeyPanel" Spacing="10" Visibility="Collapsed">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="SshKeyPathBox" Grid.Column="0"
+                                                 Header="Private key file"
+                                                 PlaceholderText="C:\Users\you\.ssh\id_ed25519" />
+                                        <Button Grid.Column="1" Content="Browse" VerticalAlignment="Bottom"
+                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                Click="OnBrowseKey" />
+                                    </Grid>
+                                    <PasswordBox x:Name="SshPassphraseBox" Header="Key passphrase (optional)" />
+                                </StackPanel>
+
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SshRemoteHostBox" Grid.Column="0"
+                                             Header="MongoDB host, as seen from the bastion"
+                                             Text="127.0.0.1" />
+                                    <NumberBox x:Name="SshRemotePortBox" Grid.Column="1" Header="MongoDB port"
+                                               Value="27017" Minimum="1" Maximum="65535"
+                                               SpinButtonPlacementMode="Compact" />
+                                </Grid>
+
+                                <TextBlock FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{ThemeResource InkFaintBrush}"
+                                           Text="The URI on the Connection tab is rewritten to the local end of the tunnel, keeping its credentials and options. An SRV URI is converted to a direct host, since one tunnel cannot represent a resolved host list." />
+                            </StackPanel>
+                        </StackPanel>
+                    </PivotItem>
+                </Pivot>
 
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button Content="Connect" Style="{StaticResource AccentButtonStyle}"
-                            Command="{x:Bind Shell.ConnectCommand}"
+                    <Button Content="Connect" Style="{StaticResource PrimaryButtonStyle}"
+                            Click="OnConnect"
                             IsEnabled="{x:Bind c:Converters.Not(Shell.IsBusy), Mode=OneWay}" />
                     <ProgressRing IsActive="{x:Bind Shell.IsBusy, Mode=OneWay}" Width="20" Height="20" />
                 </StackPanel>
+
+                <InfoBar IsOpen="{x:Bind c:Converters.HasText(Shell.ErrorMessage), Mode=OneWay}"
+                         Severity="Error" Title="Could not connect"
+                         Message="{x:Bind Shell.ErrorMessage, Mode=OneWay}" IsClosable="False" />
             </StackPanel>
-
-            <InfoBar IsOpen="{x:Bind c:Converters.HasText(Shell.ErrorMessage), Mode=OneWay}"
-                     Severity="Error" Title="Could not connect"
-                     Message="{x:Bind Shell.ErrorMessage, Mode=OneWay}"
-                     IsClosable="False" />
-
-            <StackPanel Spacing="8"
-                        Visibility="{x:Bind c:Converters.VisibleIfAny(Shell.SavedConnections.Count), Mode=OneWay}">
-                <TextBlock Text="Saved connections" Style="{StaticResource SectionHeaderStyle}" />
-
-                <ItemsControl ItemsSource="{x:Bind Shell.SavedConnections}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="conn:ConnectionProfile">
-                            <Grid Padding="12,10" Margin="0,0,0,6" CornerRadius="6"
-                                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                  BorderThickness="1"
-                                  ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Spacing="2">
-                                    <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
-                                    <!-- Redacted so a screen share never leaks the password. -->
-                                    <TextBlock Text="{x:Bind RedactedConnectionString}"
-                                               Style="{StaticResource CodeTextBlockStyle}"
-                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
-                                            VerticalAlignment="Center">
-                                    <Button Content="Use" Tag="{x:Bind}" Click="OnUseSavedConnection" />
-                                    <Button Tag="{x:Bind}" Click="OnDeleteSavedConnection"
-                                            ToolTipService.ToolTip="Forget this connection">
-                                        <FontIcon Glyph="&#xE74D;" FontSize="14" />
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-
-        </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Grid>
 </UserControl>

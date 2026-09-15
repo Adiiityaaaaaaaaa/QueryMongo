@@ -18,6 +18,9 @@ public static class Converters
 
     public static Visibility VisibleIfNotNull(object? value) => Visible(value is not null);
 
+    /// <summary>Shows a pane only when the tab strip has it selected.</summary>
+    public static Visibility VisibleWhen(int selected, int index) => Visible(selected == index);
+
     /// <summary>For InfoBar.IsOpen, which takes a bool rather than a Visibility.</summary>
     public static bool HasText(string? value) => !string.IsNullOrWhiteSpace(value);
 

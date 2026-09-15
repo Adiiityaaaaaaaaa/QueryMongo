@@ -2,26 +2,36 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using QueryMongo.Core;
 using QueryMongo.Core.Connections;
-using QueryMongo.Core.Json;
 using QueryMongo.Core.Models;
 using QueryMongo.Core.Mongo;
 using QueryMongo.Core.Services;
+using QueryMongo.Core.Shell;
 
 namespace QueryMongo.App.ViewModels;
 
+/// <summary>Identifies a pane by position in the tab strip.</summary>
+public enum CollectionPane
+{
+    Documents = 0,
+    Aggregations = 1,
+    Schema = 2,
+    Explain = 3,
+    Indexes = 4,
+    SearchIndexes = 5,
+    Validation = 6,
+    Map = 7,
+    Shell = 8
+}
+
 /// <summary>
-/// One open collection, holding the panes Compass shows per collection. Each pane
-/// loads on first visit rather than up front, so opening a tab costs one query.
+/// One open collection and the panes it shows. Each pane loads on first visit rather
+/// than up front, so opening a tab costs a single query.
 /// </summary>
 public sealed partial class CollectionTabViewModel : ObservableObject
 {
     private readonly CatalogService _catalog;
     private readonly QueryService _queries;
-
-    private ExplainSummary? _explain;
-    private bool _schemaLoaded;
-    private bool _indexesLoaded;
-    private bool _validationLoaded;
+    private readonly HashSet<CollectionPane> _loaded = [];
 
     public CollectionTabViewModel(
         string database,
@@ -40,10 +50,14 @@ public sealed partial class CollectionTabViewModel : ObservableObject
         Documents = new DocumentsViewModel(database, collection, _queries, history);
         Aggregation = new AggregationViewModel(database, collection, _queries);
         Schema = new SchemaViewModel(database, collection, new SchemaService(session));
+        Explain = new ExplainViewModel(database, collection, _queries);
         Indexes = new IndexesViewModel(database, collection, new IndexService(session));
+        SearchIndexes = new SearchIndexesViewModel(database, collection, new SearchIndexService(session));
         Validation = new ValidationViewModel(database, collection, new ValidationService(session));
-        Transfer = new TransferService(session);
+        Map = new MapViewModel(database, collection, new GeoService(session));
+        MongoShell = new MongoShellViewModel(new ShellService(session, database));
 
+        Transfer = new TransferService(session);
         StatsSummary = "";
     }
 
@@ -59,8 +73,12 @@ public sealed partial class CollectionTabViewModel : ObservableObject
     public DocumentsViewModel Documents { get; }
     public AggregationViewModel Aggregation { get; }
     public SchemaViewModel Schema { get; }
+    public ExplainViewModel Explain { get; }
     public IndexesViewModel Indexes { get; }
+    public SearchIndexesViewModel SearchIndexes { get; }
     public ValidationViewModel Validation { get; }
+    public MapViewModel Map { get; }
+    public MongoShellViewModel MongoShell { get; }
 
     internal TransferService Transfer { get; }
 
@@ -74,7 +92,7 @@ public sealed partial class CollectionTabViewModel : ObservableObject
     {
         await Documents.InitializeAsync().ConfigureAwait(true);
         await LoadStatsAsync().ConfigureAwait(true);
-        await RefreshExplainAsync().ConfigureAwait(true);
+        await RefreshScanWarningAsync().ConfigureAwait(true);
     }
 
     /// <summary>Loads a pane's data the first time it is shown.</summary>
@@ -82,25 +100,33 @@ public sealed partial class CollectionTabViewModel : ObservableObject
     {
         SelectedPane = index;
 
-        switch (index)
+        var pane = (CollectionPane)index;
+
+        // Explain always re-runs: it reports on whatever the Documents tab holds now.
+        if (pane == CollectionPane.Explain)
         {
-            case 2 when !_schemaLoaded:
-                _schemaLoaded = true;
+            await Explain.RefreshAsync(Documents.CurrentSpec).ConfigureAwait(true);
+            return;
+        }
+
+        if (!_loaded.Add(pane)) return;
+
+        switch (pane)
+        {
+            case CollectionPane.Schema:
                 await Schema.AnalyzeAsync().ConfigureAwait(true);
                 break;
-
-            case 3:
-                await RefreshExplainAsync().ConfigureAwait(true);
-                break;
-
-            case 4 when !_indexesLoaded:
-                _indexesLoaded = true;
+            case CollectionPane.Indexes:
                 await Indexes.RefreshAsync().ConfigureAwait(true);
                 break;
-
-            case 5 when !_validationLoaded:
-                _validationLoaded = true;
+            case CollectionPane.SearchIndexes:
+                await SearchIndexes.RefreshAsync().ConfigureAwait(true);
+                break;
+            case CollectionPane.Validation:
                 await Validation.LoadAsync().ConfigureAwait(true);
+                break;
+            case CollectionPane.Map:
+                await Map.LoadAsync().ConfigureAwait(true);
                 break;
         }
     }
@@ -123,38 +149,25 @@ public sealed partial class CollectionTabViewModel : ObservableObject
         }
     }
 
-    /// <summary>The Explain pane reports on the Documents query, so it has no query of its own.</summary>
-    public string ExplainDescription => _explain is null
-        ? "Run a query on the Documents tab to see its execution plan."
-        : string.Join(Environment.NewLine,
-            $"Stage:              {_explain.Stage}",
-            $"Index:              {_explain.IndexName ?? "(none — no index used)"}",
-            $"Documents examined: {_explain.DocumentsExamined:N0}",
-            $"Keys examined:      {_explain.KeysExamined:N0}",
-            $"Documents returned: {_explain.DocumentsReturned:N0}",
-            $"Execution time:     {_explain.ExecutionTime.TotalMilliseconds:N0} ms",
-            "",
-            BsonJson.ToPrettyJson(_explain.Raw));
-
+    /// <summary>
+    /// Cheap check behind the banner over the results list. The full plan lives on the
+    /// Explain pane; this only needs to know whether the server scanned.
+    /// </summary>
     [RelayCommand]
-    public async Task RefreshExplainAsync()
+    public async Task RefreshScanWarningAsync()
     {
         try
         {
-            _explain = await _queries
+            var summary = await _queries
                 .ExplainAsync(Database, Collection, Documents.CurrentSpec)
                 .ConfigureAwait(true);
 
-            // A COLLSCAN over a large collection is almost always why a query feels slow.
-            ShowCollectionScanWarning = _explain.IsCollectionScan && _explain.DocumentsExamined > 1000;
+            ShowCollectionScanWarning = summary.IsCollectionScan && summary.DocumentsExamined > 1000;
         }
         catch (Exception)
         {
             // Explain is advisory; a server that refuses it must not break the tab.
-            _explain = null;
             ShowCollectionScanWarning = false;
         }
-
-        OnPropertyChanged(nameof(ExplainDescription));
     }
 }

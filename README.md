@@ -17,14 +17,19 @@ of the high hundreds, and startup does not pay for a Chromium boot.
 | UI        | WinUI 3 / Windows App SDK 2.4          |
 | Data      | MongoDB .NET Driver 3.11               |
 | MVVM      | CommunityToolkit.Mvvm 8.4              |
+| SSH       | SSH.NET 2026.0                         |
 | Tests     | xUnit v3 on Microsoft.Testing.Platform |
 
 ## Features
 
 ### Connect
 - Connection string with fail-fast timeouts and wire compression (zstd/snappy/zlib).
+- **SSH tunnelling** to reach a deployment behind a bastion, with password or private-key
+  authentication. The URI is rewritten to the local end of the tunnel, keeping its
+  credentials and options.
 - Saved connections, encrypted per Windows account with DPAPI, shown with the password
-  redacted so a screen share never leaks it.
+  redacted so a screen share never leaks it. SSH credentials live inside the same
+  protected payload.
 
 ### Browse
 - Sidebar of databases and collections, filterable by name. Collections load on expand,
@@ -57,13 +62,18 @@ of the high hundreds, and startup does not pay for a Chromium boot.
 ### Schema
 - Samples documents server-side with `$sample` and reports every field, its type mix,
   how often it appears and example values.
+- A distribution chart per field: category bars for strings and booleans, histograms for
+  numbers and dates.
 - Flags fields that are missing from some documents, and fields holding more than one
   type — usually a bug.
 
 ### Explain
-- Execution plan for the current query: stage, index used, documents and keys examined,
-  and execution time, with the raw plan below.
-- Warns when the server fell back to a collection scan on a large collection.
+- A visual plan tree: one card per stage, indented by depth, each showing what the stage
+  does, documents returned and examined, and time spent.
+- Stages that read every document or sort in memory are flagged with specific advice.
+- Totals across the plan, plus a warning when the server examined far more documents
+  than it returned.
+- Raw explain output on a second tab.
 
 ### Indexes
 - Name, key shape with sort direction, properties, on-disk size, and usage counts from
@@ -75,6 +85,26 @@ of the high hundreds, and startup does not pay for a Chromium boot.
 - Read and edit a collection's JSON-schema rules, with validation level and action.
 - Preview which existing documents would pass and which would be rejected — applying
   rules never re-checks existing documents, so this is the only way to see the impact.
+
+### Shell
+- A command interpreter over the driver: `show dbs`, `show collections`, `use`, and the
+  common `db.<collection>.<method>()` calls with chained `.sort()`, `.limit()`, `.skip()`
+  and `.count()`.
+- Transcript with up/down history recall, and `help` listing everything supported.
+- **Not mongosh.** mongosh is a Node.js runtime; there is no JavaScript engine here, so
+  variables, loops and expressions are out of scope. Unsupported methods say so by name.
+
+### Search Indexes
+- Lists Atlas Search and Vector Search indexes with type, status and definition.
+- Create, edit and drop, with dynamic-mapping and vector templates.
+- On a non-Atlas deployment the pane says so plainly instead of surfacing a command error.
+
+### Map
+- Plots GeoJSON `Point` fields and legacy `[longitude, latitude]` pairs, auto-detecting
+  which fields hold coordinates.
+- Points are drawn on an equirectangular graticule with degree labels. There are
+  deliberately **no basemap tiles** — fetching them would mean calling a third-party
+  service from an app that otherwise only talks to your database.
 
 ### Performance
 - Live server metrics sampled every 2 seconds: insert/query/update/delete/command rates,
@@ -119,9 +149,17 @@ Swap `win-x64` for `win-arm64` to target ARM devices.
 
 ```
 src/QueryMongo.Core/    driver access, storage, BSON/JSON — no UI types
-  Connections/          connection profiles, DPAPI store, query history
-  Services/             catalog, query, schema, index, validation, admin, transfer
-src/QueryMongo.App/     WinUI 3 views, view models and dialogs
+  Connections/          profiles, DPAPI store, query history, SSH tunnel
+  Services/             catalog, query, schema, index, search, validation,
+                        admin, transfer, geo, export-to-language
+  Shell/                command parser and interpreter
+  Models/               query spec, explain tree
+src/QueryMongo.App/
+  Themes/               palette and control styles
+  Controls/             JSON highlighter, map, binding converters
+  ViewModels/           one per pane, plus the shell and tab containers
+  Views/Panes/          one UserControl per pane
+  Dialogs/              create/edit/confirm dialogs
 tests/                  Core tests; no running MongoDB required
 ```
 
@@ -144,18 +182,18 @@ View models use `[ObservableProperty]` on **partial properties**, not fields —
 form generates WinRT marshalling the toolkit rejects for WinUI targets. Partial properties
 cannot carry initializers, so defaults go in the constructor.
 
+The UI theme lives entirely in `Themes/Palette.xaml`: every colour resolves through a
+theme resource with light and dark variants, so nothing is hard-coded against one
+background.
+
 A startup crash is written to `%LOCALAPPDATA%\QueryMongo\crash.log`.
 
 ## Not yet built
 
-Compass features this does not cover:
-
-- Embedded `mongosh` shell
-- Atlas Search index management and Atlas-specific views
-- SSH tunnelling and advanced connection forms (TLS certificate pickers, proxies)
-- Geospatial map view for coordinate data
-- Charts and visual schema histograms (schema data is reported as text)
-- Visual explain-plan tree (the plan is shown as structured text plus raw JSON)
+- Embedded mongosh (a real JavaScript runtime, rather than the command interpreter above)
+- Atlas-specific views beyond search indexes: cluster metrics, billing, online archive
+- TLS certificate pickers and proxy configuration in the connection form
+- Basemap tiles behind the map view
 
 ## License
 

@@ -13,6 +13,11 @@ public sealed record ConnectionProfile
     public DateTimeOffset? LastUsedUtc { get; init; }
     public bool IsFavorite { get; init; }
 
+    /// <summary>Set when the deployment is only reachable through a bastion host.</summary>
+    public SshOptions? Ssh { get; init; }
+
+    public bool UsesSsh => Ssh is { IsConfigured: true };
+
     public static ConnectionProfile Create(string name, string connectionString) => new()
     {
         Id = Guid.NewGuid(),

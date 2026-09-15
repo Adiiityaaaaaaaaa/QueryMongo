@@ -1,0 +1,97 @@
+<UserControl
+    x:Class="QueryMongo.App.Views.Panes.ValidationPane"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:c="using:QueryMongo.App.Controls"
+    xmlns:vm="using:QueryMongo.App.ViewModels"
+    xmlns:svc="using:QueryMongo.Core.Services">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}">
+            <StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ComboBox Header="Level" Width="130" ItemsSource="{x:Bind svc:ValidationRules.Levels}"
+                              SelectedItem="{x:Bind Model.Level, Mode=TwoWay}" />
+                    <ComboBox Header="Action" Width="130" ItemsSource="{x:Bind svc:ValidationRules.Actions}"
+                              SelectedItem="{x:Bind Model.Action, Mode=TwoWay}" />
+                    <Button Content="Preview" VerticalAlignment="Bottom"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{x:Bind Model.PreviewCommand}" />
+                    <Button Content="Apply" VerticalAlignment="Bottom"
+                            Style="{StaticResource PrimaryButtonStyle}" Click="OnApply" />
+                    <Button Content="Remove rules" VerticalAlignment="Bottom"
+                            Style="{StaticResource DangerButtonStyle}" Click="OnClear" />
+                    <ProgressRing IsActive="{x:Bind Model.IsBusy, Mode=OneWay}" Width="16" Height="16"
+                                  VerticalAlignment="Bottom" />
+                </StackPanel>
+
+                <InfoBar Severity="Error" IsClosable="False"
+                         IsOpen="{x:Bind c:Converters.HasText(Model.ErrorMessage), Mode=OneWay}"
+                         Message="{x:Bind Model.ErrorMessage, Mode=OneWay}" />
+
+                <InfoBar Severity="Informational" IsClosable="False"
+                         IsOpen="{x:Bind c:Converters.HasText(Model.PreviewSummary), Mode=OneWay}"
+                         Message="{x:Bind Model.PreviewSummary, Mode=OneWay}" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnSpacing="0" Background="{ThemeResource CanvasBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="400" />
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0" Margin="20,14,14,14" Style="{StaticResource CodeEditorStyle}"
+                     Text="{x:Bind Model.RulesText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+            <Grid Grid.Column="1" Background="{ThemeResource SurfaceBrush}"
+                  BorderBrush="{ThemeResource HairlineBrush}" BorderThickness="1,0,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Spacing="6" Padding="14,12">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <FontIcon Glyph="&#xE73E;" FontSize="12"
+                                  Foreground="{ThemeResource AccentGreenBrush}" />
+                        <TextBlock Text="WOULD PASS" Style="{StaticResource SectionHeaderStyle}" />
+                    </StackPanel>
+
+                    <ListView ItemsSource="{x:Bind Model.Passing}" SelectionMode="None" MaxHeight="240">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DocumentViewModel">
+                                <TextBlock Style="{StaticResource CodeTextBlockStyle}"
+                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                           c:JsonHighlight.Json="{x:Bind Preview}" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Spacing="6" Padding="14,12">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <FontIcon Glyph="&#xE711;" FontSize="12"
+                                  Foreground="{ThemeResource DangerBrush}" />
+                        <TextBlock Text="WOULD BE REJECTED" Style="{StaticResource SectionHeaderStyle}" />
+                    </StackPanel>
+
+                    <ListView ItemsSource="{x:Bind Model.Failing}" SelectionMode="None" MaxHeight="240">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DocumentViewModel">
+                                <TextBlock Style="{StaticResource CodeTextBlockStyle}"
+                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                           c:JsonHighlight.Json="{x:Bind Preview}" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

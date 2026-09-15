@@ -17,15 +17,22 @@ namespace QueryMongo.Core.Mongo;
 public sealed class MongoSession : IDisposable
 {
     private readonly IMongoClient _client;
+    private readonly SshTunnel? _tunnel;
     private bool _disposed;
 
-    private MongoSession(IMongoClient client, ConnectionProfile profile, string serverVersion, string topology)
+    private MongoSession(
+        IMongoClient client, SshTunnel? tunnel, ConnectionProfile profile,
+        string serverVersion, string topology)
     {
         _client = client;
+        _tunnel = tunnel;
         Profile = profile;
         ServerVersion = serverVersion;
         Topology = topology;
     }
+
+    /// <summary>True when traffic is going through an SSH bastion.</summary>
+    public bool IsTunnelled => _tunnel is not null;
 
     public ConnectionProfile Profile { get; }
     public string ServerVersion { get; }
@@ -42,7 +49,18 @@ public sealed class MongoSession : IDisposable
         TimeSpan? timeout = null,
         CancellationToken ct = default)
     {
-        var settings = BuildSettings(profile.ConnectionString, timeout ?? TimeSpan.FromSeconds(10));
+        SshTunnel? tunnel = null;
+        var connectionString = profile.ConnectionString;
+
+        if (profile.Ssh is { IsConfigured: true } ssh)
+        {
+            // The tunnel must be up before the driver resolves the host, so it is
+            // opened first and torn down with the session.
+            tunnel = SshTunnel.Open(ssh);
+            connectionString = tunnel.Rewrite(connectionString);
+        }
+
+        var settings = BuildSettings(connectionString, timeout ?? TimeSpan.FromSeconds(10));
         var client = new MongoClient(settings);
 
         try
@@ -57,6 +75,7 @@ public sealed class MongoSession : IDisposable
 
             return new MongoSession(
                 client,
+                tunnel,
                 profile with { LastUsedUtc = DateTimeOffset.UtcNow },
                 buildInfo.GetValue("version", BsonString.Empty).AsString,
                 DescribeTopology(hello));
@@ -64,6 +83,7 @@ public sealed class MongoSession : IDisposable
         catch
         {
             client.Dispose();
+            tunnel?.Dispose();
             throw;
         }
     }
@@ -105,6 +125,8 @@ public sealed class MongoSession : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+
         _client.Dispose();
+        _tunnel?.Dispose();
     }
 }

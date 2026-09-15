@@ -1,0 +1,89 @@
+<UserControl
+    x:Class="QueryMongo.App.Views.Panes.IndexesPane"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:c="using:QueryMongo.App.Controls"
+    xmlns:svc="using:QueryMongo.Core.Services">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                           Style="{StaticResource MutedTextStyle}"
+                           Text="{x:Bind Model.Summary, Mode=OneWay}" />
+
+                <Button Grid.Column="1" Content="Create index"
+                        Style="{StaticResource PrimaryButtonStyle}" Click="OnCreateIndex" />
+
+                <Button Grid.Column="2" Style="{StaticResource IconButtonStyle}"
+                        Command="{x:Bind Model.RefreshCommand}" ToolTipService.ToolTip="Refresh">
+                    <FontIcon Glyph="&#xE72C;" FontSize="13" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Padding="20,14" Background="{ThemeResource CanvasBrush}">
+            <StackPanel Spacing="8">
+                <InfoBar Severity="Error" IsClosable="False"
+                         IsOpen="{x:Bind c:Converters.HasText(Model.ErrorMessage), Mode=OneWay}"
+                         Message="{x:Bind Model.ErrorMessage, Mode=OneWay}" />
+
+                <ItemsControl ItemsSource="{x:Bind Model.Indexes}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="svc:IndexDetail">
+                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,8">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="110" />
+                                        <ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Spacing="3">
+                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="{x:Bind KeyDescription}"
+                                                   Style="{StaticResource CodeTextBlockStyle}"
+                                                   Foreground="{ThemeResource InkMutedBrush}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Properties" Style="{StaticResource StatLabelStyle}" />
+                                        <TextBlock Text="{x:Bind Properties}" FontSize="12" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Size" Style="{StaticResource StatLabelStyle}" />
+                                        <TextBlock Text="{x:Bind SizeDescription}" FontSize="12" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                        <TextBlock Text="Usage" Style="{StaticResource StatLabelStyle}" />
+                                        <TextBlock Text="{x:Bind UsageDescription}" FontSize="12"
+                                                   Foreground="{ThemeResource InkMutedBrush}" />
+                                    </StackPanel>
+
+                                    <Button Grid.Column="4" Content="Drop" VerticalAlignment="Center"
+                                            Style="{StaticResource DangerButtonStyle}"
+                                            IsEnabled="{x:Bind CanDrop}" Tag="{x:Bind}" Click="OnDropIndex" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

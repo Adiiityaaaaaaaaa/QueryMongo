@@ -48,6 +48,13 @@ public sealed partial class WorkspaceView : UserControl
 
     // ---- collections -----------------------------------------------------
 
+    /// <summary>The whole database row toggles, so the chevron is not a separate target.</summary>
+    private void OnToggleDatabase(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: DatabaseNodeViewModel node })
+            node.IsExpanded = !node.IsExpanded;
+    }
+
     private async void OnCollectionClick(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: CollectionNodeViewModel node }) return;

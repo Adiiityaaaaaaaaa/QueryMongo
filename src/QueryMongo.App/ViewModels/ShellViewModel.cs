@@ -45,6 +45,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial string? ErrorMessage { get; set; }
     [ObservableProperty] public partial string ServerDescription { get; set; }
 
+    /// <summary>Host name of the open connection, shown in the sidebar header.</summary>
+    [ObservableProperty] public partial string ConnectionName { get; set; } = "Not connected";
+
     public bool IsDisconnected => !IsConnected;
 
     public ObservableCollection<ConnectionProfile> SavedConnections { get; } = [];
@@ -54,6 +57,12 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public ObservableCollection<DatabaseNodeViewModel> Databases { get; } = [];
 
     [ObservableProperty] public partial string SidebarFilter { get; set; }
+
+    /// <summary>
+    /// SSH settings from the connect form, applied to the next connection. The form
+    /// owns the fields; the shell only carries them into the profile.
+    /// </summary>
+    public SshOptions? PendingSsh { get; set; }
 
     // ---- tabs ------------------------------------------------------------
 
@@ -84,7 +93,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
         try
         {
-            var profile = ConnectionProfile.Create(name: "", ConnectionString);
+            var profile = ConnectionProfile.Create(name: "", ConnectionString) with { Ssh = PendingSsh };
             var session = await MongoSession.ConnectAsync(profile).ConfigureAwait(true);
 
             _session?.Dispose();
@@ -94,7 +103,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
             Performance = new PerformanceViewModel(_admin);
 
-            ServerDescription = $"MongoDB {session.ServerVersion} · {session.Topology}";
+            ServerDescription = $"MongoDB {session.ServerVersion} · {session.Topology}"
+                                + (session.IsTunnelled ? " · via SSH" : "");
+            ConnectionName = session.Profile.Name;
             IsConnected = true;
 
             await _store.SaveAsync(session.Profile).ConfigureAwait(true);
@@ -129,6 +140,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         _allDatabases.Clear();
         Databases.Clear();
         ServerDescription = "";
+        ConnectionName = "Not connected";
         IsConnected = false;
     }
 

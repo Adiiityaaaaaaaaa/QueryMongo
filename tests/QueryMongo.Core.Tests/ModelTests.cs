@@ -113,7 +113,7 @@ public class SchemaFieldTests
     private static SchemaField Field(int present, int sample, params (string Type, int Count)[] types) =>
         new("path", present, sample,
             types.Select(t => new SchemaTypeShare(t.Type, t.Count, (double)t.Count / present)).ToList(),
-            []);
+            [], []);
 
     [Fact]
     public void FieldInEveryDocumentIsNotSparse()
@@ -136,7 +136,7 @@ public class SchemaFieldTests
     [Fact]
     public void EmptySampleDoesNotDivideByZero()
     {
-        var field = new SchemaField("path", 0, 0, [], []);
+        var field = new SchemaField("path", 0, 0, [], [], []);
 
         Assert.Equal(0, field.Presence);
     }

@@ -6,36 +6,66 @@ using QueryMongo.Core.Services;
 
 namespace QueryMongo.App.ViewModels;
 
-/// <summary>One field row in the Schema tab, with its type mix ready to render.</summary>
-public sealed class SchemaFieldViewModel(SchemaField field)
+/// <summary>One bar in a field's distribution chart.</summary>
+public sealed class ChartBarViewModel(HistogramBucket bucket, double maxFraction)
 {
-    public SchemaField Field { get; } = field;
+    public string Label { get; } = bucket.Label;
+    public int Count { get; } = bucket.Count;
+
+    /// <summary>Bar height as a share of the tallest bar, so the chart fills its box.</summary>
+    public double HeightFraction { get; } = maxFraction <= 0 ? 0 : bucket.Fraction / maxFraction;
+
+    /// <summary>Pixel height against the fixed 64px chart area.</summary>
+    public double BarHeight => Math.Max(HeightFraction * 64, bucket.Count > 0 ? 2 : 0);
+
+    public string Tooltip { get; } = $"{bucket.Label}: {bucket.Count:N0} ({bucket.Fraction:P1})";
+}
+
+/// <summary>One field row in the Schema tab, with its type mix and distribution chart.</summary>
+public sealed class SchemaFieldViewModel
+{
+    public SchemaFieldViewModel(SchemaField field)
+    {
+        Field = field;
+
+        var distribution = SchemaCharts.Build(field.Path, field.Values);
+        Distribution = distribution;
+
+        var max = distribution.Buckets.Count == 0 ? 0 : distribution.Buckets.Max(b => b.Fraction);
+        Bars = distribution.Buckets.Select(b => new ChartBarViewModel(b, max)).ToList();
+    }
+
+    public SchemaField Field { get; }
+    public FieldDistribution Distribution { get; }
+    public IReadOnlyList<ChartBarViewModel> Bars { get; }
 
     public string Path => Field.Path;
     public string TypeDescription => Field.TypeDescription;
     public string PresenceDescription => Field.PresenceDescription;
     public bool IsSparse => Field.IsSparse;
-
-    /// <summary>Width of the presence bar, as a percentage of the row.</summary>
     public double PresencePercent => Field.Presence * 100;
 
     public string DominantType => Field.Types.Count > 0 ? Field.Types[0].TypeName : "—";
+
+    public string DistributionSummary => Distribution.Summary;
+
+    public bool HasChart => Bars.Count > 0;
 
     public string Examples => Field.Examples.Count == 0
         ? ""
         : string.Join("  ·  ", Field.Examples);
 
-    /// <summary>A short note when a field holds more than one type, which usually signals a bug.</summary>
-    public string? MixedTypeWarning => Field.Types.Count > 1
-        ? $"{Field.Types.Count} different types"
-        : null;
-
+    /// <summary>A field holding more than one type is usually a bug worth surfacing.</summary>
     public bool HasMixedTypes => Field.Types.Count > 1;
+
+    public string? MixedTypeWarning => HasMixedTypes
+        ? $"{Field.Types.Count} types: {Field.TypeDescription}"
+        : null;
 }
 
 /// <summary>
-/// The Schema tab: samples documents and reports the fields found, their types and
-/// how often each appears.
+/// The Schema tab: samples documents and reports the fields found, their types, how
+/// often each appears, and the distribution of their values.
 /// </summary>
 public sealed partial class SchemaViewModel : ObservableObject
 {

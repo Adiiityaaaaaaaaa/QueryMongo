@@ -7,50 +7,9 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <ResourceDictionary Source="ms-appx:///Themes/Palette.xaml" />
+                <ResourceDictionary Source="ms-appx:///Themes/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
-
-            <!-- Monospace is not optional for JSON: proportional fonts destroy alignment. -->
-            <x:String x:Key="CodeFontFamily">Cascadia Mono, Consolas, Courier New</x:String>
-
-            <Style x:Key="CodeTextBlockStyle" TargetType="TextBlock">
-                <Setter Property="FontFamily" Value="{StaticResource CodeFontFamily}" />
-                <Setter Property="FontSize" Value="12" />
-                <Setter Property="IsTextSelectionEnabled" Value="True" />
-                <Setter Property="TextWrapping" Value="Wrap" />
-            </Style>
-
-            <Style x:Key="CodeTextBoxStyle" TargetType="TextBox">
-                <Setter Property="FontFamily" Value="{StaticResource CodeFontFamily}" />
-                <Setter Property="FontSize" Value="12" />
-                <Setter Property="AcceptsReturn" Value="False" />
-                <Setter Property="IsSpellCheckEnabled" Value="False" />
-            </Style>
-
-            <!-- Stat tiles on the Performance tab -->
-            <Style x:Key="StatTileStyle" TargetType="Border">
-                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="CornerRadius" Value="6" />
-                <Setter Property="Padding" Value="14,10" />
-                <Setter Property="MinWidth" Value="120" />
-            </Style>
-
-            <Style x:Key="StatLabelStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="11" />
-                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
-            </Style>
-
-            <Style x:Key="StatValueStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="22" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-            </Style>
-
-            <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="12" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
-            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
