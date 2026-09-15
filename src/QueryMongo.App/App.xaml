@@ -1,0 +1,36 @@
+<Application
+    x:Class="QueryMongo.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Monospace is not optional for JSON: proportional fonts destroy alignment. -->
+            <x:String x:Key="CodeFontFamily">Cascadia Mono, Consolas, Courier New</x:String>
+
+            <Style x:Key="CodeTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource CodeFontFamily}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="IsTextSelectionEnabled" Value="True" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+
+            <Style x:Key="CodeTextBoxStyle" TargetType="TextBox">
+                <Setter Property="FontFamily" Value="{StaticResource CodeFontFamily}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="AcceptsReturn" Value="False" />
+                <Setter Property="IsSpellCheckEnabled" Value="False" />
+            </Style>
+
+            <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/QueryMongo.App/QueryMongo.App.csproj" />
+    <Project Path="src/QueryMongo.Core/QueryMongo.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/QueryMongo.Core.Tests/QueryMongo.Core.Tests.csproj" />
+  </Folder>
+</Solution>

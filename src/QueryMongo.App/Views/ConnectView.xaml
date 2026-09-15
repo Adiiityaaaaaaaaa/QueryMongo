@@ -1,0 +1,79 @@
+<UserControl
+    x:Class="QueryMongo.App.Views.ConnectView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:c="using:QueryMongo.App.Controls"
+    xmlns:conn="using:QueryMongo.Core.Connections">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="720" Margin="32,24,32,48" Spacing="20" HorizontalAlignment="Center">
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Connect to MongoDB" FontSize="26" FontWeight="SemiBold" />
+                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="Paste a connection string. Saved connections are encrypted for your Windows account." />
+            </StackPanel>
+
+            <StackPanel Spacing="8">
+                <TextBlock Text="Connection string" Style="{StaticResource SectionHeaderStyle}" />
+                <TextBox Text="{x:Bind Shell.ConnectionString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource CodeTextBoxStyle}"
+                         PlaceholderText="mongodb://localhost:27017"
+                         KeyDown="OnConnectionStringKeyDown" />
+
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button Content="Connect" Style="{StaticResource AccentButtonStyle}"
+                            Command="{x:Bind Shell.ConnectCommand}"
+                            IsEnabled="{x:Bind c:Converters.Not(Shell.IsBusy), Mode=OneWay}" />
+                    <ProgressRing IsActive="{x:Bind Shell.IsBusy, Mode=OneWay}" Width="20" Height="20" />
+                </StackPanel>
+            </StackPanel>
+
+            <InfoBar IsOpen="{x:Bind c:Converters.HasText(Shell.ErrorMessage), Mode=OneWay}"
+                     Severity="Error" Title="Could not connect"
+                     Message="{x:Bind Shell.ErrorMessage, Mode=OneWay}"
+                     IsClosable="False" />
+
+            <StackPanel Spacing="8"
+                        Visibility="{x:Bind c:Converters.VisibleIfAny(Shell.SavedConnections.Count), Mode=OneWay}">
+                <TextBlock Text="Saved connections" Style="{StaticResource SectionHeaderStyle}" />
+
+                <ItemsControl ItemsSource="{x:Bind Shell.SavedConnections}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="conn:ConnectionProfile">
+                            <Grid Padding="12,10" Margin="0,0,0,6" CornerRadius="6"
+                                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                  BorderThickness="1"
+                                  ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                    <!-- Redacted so a screen share never leaks the password. -->
+                                    <TextBlock Text="{x:Bind RedactedConnectionString}"
+                                               Style="{StaticResource CodeTextBlockStyle}"
+                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                            VerticalAlignment="Center">
+                                    <Button Content="Use" Tag="{x:Bind}" Click="OnUseSavedConnection" />
+                                    <Button Tag="{x:Bind}" Click="OnDeleteSavedConnection"
+                                            ToolTipService.ToolTip="Forget this connection">
+                                        <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

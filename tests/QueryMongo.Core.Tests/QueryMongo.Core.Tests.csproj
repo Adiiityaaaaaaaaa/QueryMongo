@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      xUnit v3 runs on Microsoft.Testing.Platform: the test project is its own
+      executable and needs no VSTest bridge. The .NET 10 SDK requires opting in
+      explicitly for `dotnet test` to drive it.
+    -->
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <UseVSTest>false</UseVSTest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QueryMongo.Core\QueryMongo.Core.csproj" />
+  </ItemGroup>
+
+</Project>
