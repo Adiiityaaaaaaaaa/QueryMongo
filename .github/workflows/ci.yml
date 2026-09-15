@@ -12,9 +12,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
@@ -30,7 +30,7 @@ jobs:
       - name: Publish self-contained exe
         run: dotnet publish src/QueryMongo.App -c Release -r win-x64 -o dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: QueryMongo-win-x64
           path: dist/
